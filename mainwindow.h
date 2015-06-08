@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTimer>
 
 namespace Ui {
 class MainWindow;
@@ -17,6 +18,12 @@ public:
 
 private:
     Ui::MainWindow *ui;
+    QTimer* animTimer;
+
+private slots:
+    // thread to open image
+    void AnimationThread();
+    void SimulationStart();
 };
 
 #endif // MAINWINDOW_H

@@ -12,6 +12,9 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLShaderProgram>
 
+#include "MyPoint.h"
+#include "MyLine.h"
+
 class GLWidget : public QGLWidget
 {
     Q_OBJECT
@@ -21,6 +24,11 @@ private:
     float   _zoomFactor;
     QPoint  _scrollOffset;
 
+    int _currentIter;
+    int _iterStatus; // -1 do nothing or stop
+                     //  0 init
+                     //  1 running
+
     // image size
     int _img_width;
     int _img_height;
@@ -28,15 +36,55 @@ private:
     // shader
     QOpenGLShaderProgram* _shaderProgram;
 
-    // centroids
+    // points
+    std::vector<MyPoint> _points;
     QOpenGLBuffer _pointsVbo;
     QOpenGLVertexArrayObject _pointsVao;
 
+    // the selected point
+    bool _drawSelPoint;
+    MyPoint _selPoint;
+    QOpenGLBuffer _selPointsVbo;
+    QOpenGLVertexArrayObject _selPointsVao;
+
+    // right lines
+    std::vector<MyLine> _rLines;
+    QOpenGLBuffer _rLinesVbo;
+    QOpenGLVertexArrayObject _rLinesVao;
+
+
+    // left lines
+    std::vector<MyLine> _lLines;
+    QOpenGLBuffer _lLinesVbo;
+    QOpenGLVertexArrayObject _lLinesVao;
+
+    // lines
+    QOpenGLBuffer _linesVbo;
+    QOpenGLVertexArrayObject _linesVao;
+
     // for rendering
-   int _mvpMatrixLocation;
-   int _colorLocation;
-   QMatrix4x4 _perspMatrix;
-   QMatrix4x4 _transformMatrix;
+    int _mvpMatrixLocation;
+    int _colorLocation;
+    QMatrix4x4 _perspMatrix;
+    QMatrix4x4 _transformMatrix;
+
+private:
+   void InitCurve();
+   void EvolveCurve();
+   void PaintCurve();
+   void CreatePointVAO();
+   void ResampleCurve();
+
+   void UniformResample(std::vector<MyPoint>& oriCurve, std::vector<MyPoint>& resampleCurve, double maxDist);
+   int RandomNumber();
+
+   void GetClosestSegments(int ptIndex, std::vector<MyLine>& rLines, std::vector<MyLine>& lLines);
+
+   MyPoint GetClosestPointToALine(MyPoint v, MyPoint w, MyPoint p);
+
+   void PreparePointsVAO(std::vector<MyPoint> points, QOpenGLBuffer* ptsVbo, QOpenGLVertexArrayObject* ptsVao, QVector3D vecCol);
+   //void PrepareLinesVAO(std::vector<MyPoint> points, QOpenGLBuffer* linesVbo, QOpenGLVertexArrayObject* linesVao, QVector3D vecCol);
+   void PrepareLinesVAO(std::vector<MyLine> lines, QOpenGLBuffer* linesVbo, QOpenGLVertexArrayObject* linesVao, QVector3D vecCol);
 
 protected:
     // qt event
@@ -55,6 +103,9 @@ public:
     GLWidget( QGLFormat format, QWidget *parent = 0);
     // destructor
     ~GLWidget();
+
+    bool IsCalculationDone(){ return _iterStatus == -1; }
+    void StartEvolution(){ _iterStatus = 0; }
 
     QSize GetCanvasSize() { return QSize(_img_width, _img_height); }
 

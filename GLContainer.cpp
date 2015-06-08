@@ -63,6 +63,8 @@ void GLContainer::UpdateViewport(bool putInMiddle)
     int img_width =	canvasSize.width()  * zoomFactor;
     int img_height = canvasSize.height() * zoomFactor;
 
+    //std::cout << img_width << " " << img_height << "\n";
+
     if(img_width == 0 || img_height == 0)
     {
         img_width = 100 * zoomFactor;

@@ -15,10 +15,19 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainwindow.cpp \
     GLContainer.cpp \
-    GLWidget.cpp
+    GLWidget.cpp \
+    SystemParams.cpp
 
 HEADERS  += mainwindow.h \
     GLContainer.h \
-    GLWidget.h
+    GLWidget.h \
+    SystemParams.h \
+    MyPoint.h \
+    MyLine.h \
+    VertexData.h
 
 FORMS    += mainwindow.ui
+
+QMAKE_CXXFLAGS += -frounding-math -O3
+
+QMAKE_CXXFLAGS += -std=gnu++1y
