@@ -47,13 +47,23 @@ private:
     QOpenGLBuffer _selPointsVbo;
     QOpenGLVertexArrayObject _selPointsVao;
 
-    // right lines
+    // right points (debug)
+    std::vector<MyPoint> _rPoints;
+    QOpenGLBuffer _rPointsVbo;
+    QOpenGLVertexArrayObject _rPointsVao;
+
+    // left points (debug)
+    std::vector<MyPoint> _lPoints;
+    QOpenGLBuffer _lPointsVbo;
+    QOpenGLVertexArrayObject _lPointsVao;
+
+    // right lines (debug)
     std::vector<MyLine> _rLines;
     QOpenGLBuffer _rLinesVbo;
     QOpenGLVertexArrayObject _rLinesVao;
 
 
-    // left lines
+    // left lines (debug)
     std::vector<MyLine> _lLines;
     QOpenGLBuffer _lLinesVbo;
     QOpenGLVertexArrayObject _lLinesVao;
@@ -72,15 +82,25 @@ private:
    void InitCurve();
    void EvolveCurve();
    void PaintCurve();
-   void CreatePointVAO();
+   void CreateCurveVAO();
    void ResampleCurve();
 
    void UniformResample(std::vector<MyPoint>& oriCurve, std::vector<MyPoint>& resampleCurve, double maxDist);
-   int RandomNumber();
+   float RandomNumber();
 
    void GetClosestSegments(int ptIndex, std::vector<MyLine>& rLines, std::vector<MyLine>& lLines);
+   void GetClosestPoints(MyPoint curPt,
+                         std::vector<MyLine> rLines,
+                         std::vector<MyLine> lLines,
+                         std::vector<MyPoint>& rPoints,
+                         std::vector<MyPoint>& lPoints);
+
 
    MyPoint GetClosestPointToALine(MyPoint v, MyPoint w, MyPoint p);
+
+   MyPoint GetAttractionRepulsion1(int ptIdx);
+   MyPoint GetAttractionRepulsion2(int ptIdx);
+   float GetLennardJones(float r);
 
    void PreparePointsVAO(std::vector<MyPoint> points, QOpenGLBuffer* ptsVbo, QOpenGLVertexArrayObject* ptsVao, QVector3D vecCol);
    //void PrepareLinesVAO(std::vector<MyPoint> points, QOpenGLBuffer* linesVbo, QOpenGLVertexArrayObject* linesVao, QVector3D vecCol);

@@ -20,9 +20,9 @@ GLWidget::GLWidget(QGLFormat format, QWidget *parent) :
     _drawSelPoint(false)
 
 {
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 1, 0))
-    std::cout << "Qt version >= 5.1.0\n";
-#endif
+//#if (QT_VERSION >= QT_VERSION_CHECK(5, 1, 0))
+//    std::cout << "Qt version >= 5.1.0\n";
+//#endif
 }
 
 
@@ -34,8 +34,7 @@ GLWidget::~GLWidget()
 void GLWidget::initializeGL()
 {
     QGLFormat glFormat = QGLWidget::format();
-    if (!glFormat.sampleBuffers())
-        { std::cerr << "Could not enable sample buffers." << std::endl; return; }
+    if (!glFormat.sampleBuffers()) { std::cerr << "Could not enable sample buffers." << std::endl; return; }
 
     glShadeModel(GL_SMOOTH);
 
@@ -54,13 +53,9 @@ void GLWidget::initializeGL()
     if ( !_shaderProgram->link() )
         { std::cerr << "Cannot link shaders." << std::endl; return; }
 
-
     _shaderProgram->bind();
-
     _mvpMatrixLocation = _shaderProgram->uniformLocation("mvpMatrix");
     _colorLocation = _shaderProgram->attributeLocation("vertexColor");
-
-    //InitCurve();
 }
 
 
@@ -129,19 +124,8 @@ void GLWidget::mousePressEvent(int x, int y)
 
     // your stuff
     //std::cout << dx << " " << dy << "\n";
-
-    /*
-    MyPoint _selPoint;
-    QOpenGLBuffer _sPointsVbo;
-    QOpenGLVertexArrayObject _sPointsVao;
-    */
-
     // fix me: should use kd-tree
-
     //if(_iterStatus != -1) return;
-
-    //std::cout << "mouse pressed\n";
-
 
     _drawSelPoint = true;
     int idx = 0;
@@ -159,122 +143,30 @@ void GLWidget::mousePressEvent(int x, int y)
     }
 
     GetClosestSegments(idx, _rLines, _lLines);
+    GetClosestPoints(_selPoint, _rLines, _lLines, _rPoints, _lPoints);
 
-    //std::cout << minDist << " " << _selPoint.x << " " << _selPoint.y << "\n";
-
+    // SELECTED POINTS
     QVector3D vecCol = QVector3D(0.0, 0.0, 1.0);
     std::vector<MyPoint> points;
     points.push_back(_selPoint);
     PreparePointsVAO(points, &_selPointsVbo, &_selPointsVao, vecCol);
 
-    /*
-    if(_selPointsVao.isCreated()) { _selPointsVao.destroy(); }
-
-    _selPointsVao.create();
-    _selPointsVao.bind();
-
-    QVector<VertexData> pointVertices;
-    pointVertices.append(VertexData(QVector3D(_selPoint.x, _selPoint.y,  0), QVector2D(), vecCol));
-
-    _selPointsVbo.create();
-    _selPointsVbo.bind();
-    _selPointsVbo.allocate(pointVertices.data(), pointVertices.size() * sizeof(VertexData));
-
-    quintptr offset = 0;
-
-    int vertexLocation = _shaderProgram->attributeLocation("vert");
-    _shaderProgram->enableAttributeArray(vertexLocation);
-    _shaderProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3, sizeof(VertexData));
-
-    offset += sizeof(QVector3D);
-    offset += sizeof(QVector2D);
-
-    _shaderProgram->enableAttributeArray(_colorLocation);
-    _shaderProgram->setAttributeBuffer(_colorLocation, GL_FLOAT, offset, 3, sizeof(VertexData));
-
-    _selPointsVao.release();
-    */
-
+    // R LINES
+    vecCol = QVector3D(1.0, 0.0, 1.0);
+    PrepareLinesVAO(_rLines, &_rLinesVbo, &_rLinesVao, vecCol);
+    this->repaint();
 
     // L LINES
     vecCol = QVector3D(0.0, 1.0, 1.0);
     PrepareLinesVAO(_lLines, &_lLinesVbo, &_lLinesVao, vecCol);
-    /*
-    if(_lLinesVao.isCreated())
-    {
-        _lLinesVao.destroy();
-    }
 
-    _lLinesVao.create();
-    _lLinesVao.bind();
-
-    QVector<VertexData> linesVertices;
-    for(size_t a = 0; a < _lLines.size(); a++)
-    {
-        linesVertices.append(VertexData(QVector3D(_lLines[a].XA, _lLines[a].YA,  0), QVector2D(), vecCol));
-        linesVertices.append(VertexData(QVector3D(_lLines[a].XB, _lLines[a].YB,  0), QVector2D(), vecCol));
-
-        std:: cout << _lLines[a].XA << _lLines[a].YA << "\n";
-        std:: cout << _lLines[a].XB << _lLines[a].YB << "\n";
-    }
-
-    _lLinesVbo.create();
-    _lLinesVbo.bind();
-    _lLinesVbo.allocate(linesVertices.data(), linesVertices.size() * sizeof(VertexData));
-
-    quintptr offset = 0;
-
-    int vertexLocation = _shaderProgram->attributeLocation("vert");
-    _shaderProgram->enableAttributeArray(vertexLocation);
-    _shaderProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3, sizeof(VertexData));
-
-    offset += sizeof(QVector3D);
-    offset += sizeof(QVector2D);
-
-    _shaderProgram->enableAttributeArray(_colorLocation);
-    _shaderProgram->setAttributeBuffer(_colorLocation, GL_FLOAT, offset, 3, sizeof(VertexData));
-
-    _lLinesVao.release();
-    */
-
-    // R LINES
+    // R POINTS
     vecCol = QVector3D(1.0, 0.0, 1.0);
-    PrepareLinesVAO(_rLines, &_rLinesVbo, &_rLinesVao, vecCol);
-    /*
-    if(_rLinesVao.isCreated())
-    {
-        _rLinesVao.destroy();
-    }
+    PreparePointsVAO(_rPoints, &_rPointsVbo, &_rPointsVao, vecCol);
 
-    _rLinesVao.create();
-    _rLinesVao.bind();
-
-    linesVertices.clear();
-    for(size_t a = 0; a < _rLines.size(); a++)
-    {
-        linesVertices.append(VertexData(QVector3D(_rLines[a].XA, _rLines[a].YA,  0), QVector2D(), vecCol));
-        linesVertices.append(VertexData(QVector3D(_rLines[a].XB, _rLines[a].YB,  0), QVector2D(), vecCol));
-    }
-
-    _rLinesVbo.create();
-    _rLinesVbo.bind();
-    _rLinesVbo.allocate(linesVertices.data(), linesVertices.size() * sizeof(VertexData));
-
-    offset = 0;
-
-    vertexLocation = _shaderProgram->attributeLocation("vert");
-    _shaderProgram->enableAttributeArray(vertexLocation);
-    _shaderProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3, sizeof(VertexData));
-
-    offset += sizeof(QVector3D);
-    offset += sizeof(QVector2D);
-
-    _shaderProgram->enableAttributeArray(_colorLocation);
-    _shaderProgram->setAttributeBuffer(_colorLocation, GL_FLOAT, offset, 3, sizeof(VertexData));
-
-    _rLinesVao.release();
-    */
-    this->repaint();
+    // L POINTS
+    vecCol = QVector3D(0.0, 1.0, 1.0);
+    PreparePointsVAO(_lPoints, &_lPointsVbo, &_lPointsVao, vecCol);
 }
 
 
@@ -319,17 +211,15 @@ void GLWidget::mouseDoubleClick(int x, int y)
 
 void GLWidget::HorizontalScroll(int val) { _scrollOffset.setX(val); }
 void GLWidget::VerticalScroll(int val) { _scrollOffset.setY(val); }
-void GLWidget::ZoomIn() { this->_zoomFactor += 0.05f; }
-void GLWidget::ZoomOut() { this->_zoomFactor -= 0.05f; if(this->_zoomFactor < 0.1f) _zoomFactor = 0.1f; }
+void GLWidget::ZoomIn() { this->_zoomFactor += 0.5f; }
+void GLWidget::ZoomOut() { this->_zoomFactor -= 0.5f; if(this->_zoomFactor < 0.1f) _zoomFactor = 0.1f; }
 
 
 void GLWidget::InitCurve()
 {
     _points.clear();
-    //QVector<VertexData> vertices;
 
     MyPoint centerPt(this->_img_width / 2, this->_img_height / 2);
-
 
     float addValue = (M_PI * 2.0 / (float)SystemParams::init_slices);
     for(float a = 0.0; a < M_PI * 2.0; a += addValue)
@@ -337,9 +227,7 @@ void GLWidget::InitCurve()
         float xPt = centerPt.x + SystemParams::radius * sin(a);
         float yPt = centerPt.y + SystemParams::radius * cos(a);
         _points.push_back(MyPoint(xPt, yPt));
-        //vertices.append(VertexData(QVector3D(xPt, yPt,  -10), QVector2D(), vecCol));
     }
-
 
     // resampling
     ResampleCurve();
@@ -348,123 +236,107 @@ void GLWidget::InitCurve()
 
 }
 
-void GLWidget::CreatePointVAO()
+void GLWidget::CreateCurveVAO()
 {
-    QVector3D vecCol = QVector3D(1.0, 0.0, 0.0);
-    PreparePointsVAO(_points, &_pointsVbo, &_pointsVao, vecCol);
     // POINTS VAO
-    /*
-    if(_pointsVao.isCreated())
-    {
-        _pointsVao.destroy();
-    }
+    QVector3D vecCol = QVector3D(0.0, 0.0, 0.0);
+    PreparePointsVAO(_points, &_pointsVbo, &_pointsVao, vecCol);
 
-    _pointsVao.create();
-    _pointsVao.bind();
-
-    QVector<VertexData> pointVertices;
-    for(size_t a = 0; a < _points.size(); a++)
-    {
-        pointVertices.append(VertexData(QVector3D(_points[a].x, _points[a].y,  0), QVector2D(), vecCol));
-    }
-
-    _pointsVbo.create();
-    _pointsVbo.bind();
-    _pointsVbo.allocate(pointVertices.data(), pointVertices.size() * sizeof(VertexData));
-
-    quintptr offset = 0;
-
-    int vertexLocation = _shaderProgram->attributeLocation("vert");
-    _shaderProgram->enableAttributeArray(vertexLocation);
-    _shaderProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3, sizeof(VertexData));
-
-    offset += sizeof(QVector3D);
-    offset += sizeof(QVector2D);
-
-    _shaderProgram->enableAttributeArray(_colorLocation);
-    _shaderProgram->setAttributeBuffer(_colorLocation, GL_FLOAT, offset, 3, sizeof(VertexData));
-
-    _pointsVao.release();
-    */
-
-    // LINE VAO
-    if(_linesVao.isCreated())
-    {
-        _linesVao.destroy();
-    }
-
-    _linesVao.create();
-    _linesVao.bind();
-
+    // LINES VAO
     vecCol = QVector3D(0.0, 1.0, 0.0);
-    QVector<VertexData> linesVertices;
+    std::vector<MyLine> lines;
     for(size_t a = 0; a < _points.size(); a++)
     {
-        linesVertices.append(VertexData(QVector3D(_points[a].x, _points[a].y,  0), QVector2D(), vecCol));
-        if(a < _points.size() - 1)
-        {
-            linesVertices.append(VertexData(QVector3D(_points[a+1].x, _points[a+1].y,  0), QVector2D(), vecCol));
-        }
+        if(a < _points.size() - 1) { lines.push_back(MyLine(_points[a].x, _points[a].y, _points[a+1].x, _points[a+1].y)); }
+        else { lines.push_back(MyLine(_points[a].x, _points[a].y, _points[0].x, _points[0].y)); }
     }
-    linesVertices.append(VertexData(QVector3D(_points[0].x, _points[0].y,  0), QVector2D(), vecCol));
-
-    _linesVbo.create();
-    _linesVbo.bind();
-    _linesVbo.allocate(linesVertices.data(), linesVertices.size() * sizeof(VertexData));
-
-    quintptr offset = 0;
-    //offset = 0;
-
-    int vertexLocation = _shaderProgram->attributeLocation("vert");
-    _shaderProgram->enableAttributeArray(vertexLocation);
-    _shaderProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3, sizeof(VertexData));
-
-    offset += sizeof(QVector3D);
-    offset += sizeof(QVector2D);
-
-    _shaderProgram->enableAttributeArray(_colorLocation);
-    _shaderProgram->setAttributeBuffer(_colorLocation, GL_FLOAT, offset, 3, sizeof(VertexData));
-
-    _linesVao.release();
+    PrepareLinesVAO(lines, &_linesVbo, &_linesVao, vecCol);
 }
 
 void GLWidget::ResampleCurve()
 {
+    std::vector<MyPoint> tempPoints;
+
+    // fix me
+    float dFactor = 0.9f;
+
+    // stupid hack
+    MyPoint firstPt = _points[0];
+    _points.push_back(firstPt);
+
+    // a really simple resampling (a version from the paper)
+    for(size_t a = 0; a < _points.size() - 1;)
+    {
+        MyPoint pt1 = _points[a];
+        MyPoint pt2 = _points[a+1];
+
+        tempPoints.push_back(pt1);
+
+        if(pt1.Distance(pt2) > SystemParams::D * dFactor)   // split
+        {
+            MyPoint newPt = pt1 + (pt2 - pt1) * 0.5;
+            tempPoints.push_back(newPt);
+            a++;
+        }
+        else    // delete / skip next
+        {
+            a += 2;
+        }
+    }
+
+    // rebuild curve
+    _points.clear();
+    for(size_t a = 0; a < tempPoints.size(); a++)
+        { _points.push_back(tempPoints[a]); }
+
+    /*
+    // uniform resampling (more precise)
     std::vector<MyPoint> tempPoints;
     UniformResample(_points, tempPoints, SystemParams::D);
     _points.clear();
     for(size_t a = 0; a < tempPoints.size(); a++)
     {
         _points.push_back(tempPoints[a]);
-    }
+    }*/
 }
 
 void GLWidget::EvolveCurve()
 {
-    std::cout << "iteration " << _currentIter << "\n";
+    //std::cout << "iteration " << _currentIter << "\n";
     if(_currentIter == SystemParams::max_iter - 1)
     {
         _iterStatus = -1;
         _drawSelPoint = false;
     }
 
-    // 1 - brownian
+    std::vector<MyPoint> tempPoints;
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        tempPoints.push_back(MyPoint(_points[a].x, _points[a].y));
+    }
+
+    // 1 --- BROWNIAN MOTION
     // fix me, delta is static
     for(size_t a = 0; a < _points.size(); a++)
     {
         MyPoint pt = _points[a];
-        //double fBrownian = SystemParams::f_b * RandomNumber() * 1.0 * SystemParams::D;
-        pt.x += SystemParams::f_b * (float)RandomNumber() * 0.05f * SystemParams::D;
-        pt.y += SystemParams::f_b * (float)RandomNumber() * 0.05f * SystemParams::D;
 
-        _points[a] = pt;
+        //float xB = SystemParams::f_b * (float)RandomNumber() * 1.0f * SystemParams::D;
+        //float yB = SystemParams::f_b * (float)RandomNumber() * 1.0f * SystemParams::D;
+
+        float randX = RandomNumber() * cos(RandomNumber());
+        float randY = RandomNumber() * sin(RandomNumber());
+
+        //std::cout << randX << " " << randY << "\n";
+
+        float xB = SystemParams::f_b * randX * 1.0f * SystemParams::D;
+        float yB = SystemParams::f_b * randY * 1.0f * SystemParams::D;
+
+        tempPoints[a] += MyPoint(xB, yB);
 
     }
 
-    ResampleCurve();
-
-
-    // 2 - fairing
+    // 2 --- FAIRING
     // fix me, delta is static
     for(size_t a = 0; a < _points.size(); a++)
     {
@@ -484,16 +356,26 @@ void GLWidget::EvolveCurve()
         xFactor -= curPt.x;
         yFactor -= curPt.y;
 
-        curPt.x += SystemParams::f_f * xFactor;
-        curPt.y += SystemParams::f_f * yFactor;
+        tempPoints[a] += MyPoint(SystemParams::f_f * xFactor, SystemParams::f_f * yFactor);
+    }
 
-        _points[a] = curPt;
+    // 3 --- ATTRACTION - REPULSION
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        MyPoint pt = GetAttractionRepulsion2(a);
+        std::cout << "AR " << pt.x << " - " << pt.y << "\n";
+        tempPoints[a] += pt;
+    }
+
+    // update
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        _points[a] = tempPoints[a];
     }
 
     ResampleCurve();
 
-    CreatePointVAO();
-    //this->repaint();
+    CreateCurveVAO();
 
     _currentIter++;
 }
@@ -501,14 +383,15 @@ void GLWidget::EvolveCurve()
 
 void GLWidget::PaintCurve()
 {
-    if(_points.size() == 0)
-    {
-        return;
-    }
+    if(_points.size() == 0) { return; }
 
     int use_color_location = _shaderProgram->uniformLocation("use_color");
     _shaderProgram->setUniformValue(use_color_location, (GLfloat)1.0);
 
+    glPointSize(5.0f);
+    _pointsVao.bind();
+    glDrawArrays(GL_POINTS, 0, _points.size());
+    _pointsVao.release();
 
     if(_drawSelPoint)
     {
@@ -517,78 +400,60 @@ void GLWidget::PaintCurve()
         glDrawArrays(GL_POINTS, 0, 1);
         _selPointsVao.release();
 
+        _rPointsVao.bind();
+        glDrawArrays(GL_POINTS, 0, _rPoints.size());
+        _rPointsVao.release();
+
+        _lPointsVao.bind();
+        glDrawArrays(GL_POINTS, 0, _lPoints.size());
+        _lPointsVao.release();
+
+        glLineWidth(2.0f);
         _lLinesVao.bind();
         glDrawArrays(GL_LINES, 0, _lLines.size() * 2);
         _lLinesVao.release();
 
+        glLineWidth(2.0f);
         _rLinesVao.bind();
         glDrawArrays(GL_LINES, 0, _rLines.size() * 2);
         _rLinesVao.release();
     }
 
-    glPointSize(5.0f);
-    _pointsVao.bind();
-    glDrawArrays(GL_POINTS, 0, _points.size());
-    _pointsVao.release();
-
-//    _linesVao.bind();
-//    glDrawArrays(GL_LINES, 0, _points.size() * 2);
-//    _linesVao.release();
-
-
-
-
-
+    _linesVao.bind();
+    glDrawArrays(GL_LINES, 0, _points.size() * 2);
+    _linesVao.release();
 }
 
 void GLWidget::UniformResample(std::vector<MyPoint>& oriCurve, std::vector<MyPoint>& resampleCurve, double maxDist)
 {
-
     // fix me
     MyPoint lastPt = oriCurve[0];
     oriCurve.push_back(lastPt);
 
     resampleCurve.clear();
-    //for(int a = 0; a <= N; a++) { resampleCurve.push_back(MyPoint(0,0)); }
-    //resampleCurve[0].x = oriCurve[0].x;
-    //resampleCurve[0].y = oriCurve[0].y;
-    //resampleCurve[N].x = oriCurve[oriCurve.size()-1].x;
-    //resampleCurve[N].y = oriCurve[oriCurve.size()-1].y;
 
-    //double pl_length = CurveLength(oriCurve);
-
-    //double resample_size = pl_length / (double) N;
     double resample_size = maxDist;
 
-    int curr = 0;
+    int iter = 0;
     double dist = 0.0;
-    //int i = 1;
-    //for (int i = 1; i < N; )
-    while(curr < oriCurve.size() - 1)
+
+    while(iter < oriCurve.size() - 1)
     {
-        double last_dist = oriCurve[curr].Distance(oriCurve[curr+1]);
+        double last_dist = oriCurve[iter].Distance(oriCurve[iter + 1]);
 
         dist += last_dist;
 
         if (dist >= resample_size)
         {
             //put a point on line
-            double _d = last_dist - (dist-resample_size);
-            MyPoint cp(oriCurve[curr].x, oriCurve[curr].y);
+            double _d = last_dist - (dist - resample_size);
+            MyPoint cp(oriCurve[iter].x, oriCurve[iter].y);
 
-            //MyPoint cp1(oriCurve[curr+1].x, oriCurve[curr+1].y);
+            MyPoint  cp1 = MyPoint(oriCurve[iter+1].x, oriCurve[iter+1].y);
 
-            //MyPoint cp1(oriCurve[0].x, oriCurve[0].y);
-            //if(curr <  oriCurve.size() - 1)
-            //{
-                MyPoint  cp1 = MyPoint(oriCurve[curr+1].x, oriCurve[curr+1].y);
-            //}
-
-            MyPoint dirv = cp1-cp;
+            MyPoint dirv = cp1 - cp;
             dirv = dirv * (1.0 / dirv.Length());
 
-            //resampleCurve[i] = cp + dirv * _d;
-            //i++;
             MyPoint insertPt1 = cp + dirv * _d;
             resampleCurve.push_back(insertPt1);
 
@@ -597,27 +462,24 @@ void GLWidget::UniformResample(std::vector<MyPoint>& oriCurve, std::vector<MyPoi
             //if remaining dist to next point needs more sampling... (within some epsilon)
             while (dist - resample_size > 1e-8 )
             {
-                //resampleCurve[i] = resampleCurve[i-1] + dirv * resample_size;
                 MyPoint insertPt2 = resampleCurve[resampleCurve.size() - 1] + dirv * resample_size;
                 resampleCurve.push_back(insertPt2);
-
                 dist -= resample_size;
-                //i++;
             }
         }
-        curr++;
+        iter++;
     }
 
     //oriCurve.pop_back();
 }
 
-int GLWidget::RandomNumber()
+float GLWidget::RandomNumber()
 {
     std::random_device rd;
     std::mt19937 e2(rd());
     std::normal_distribution<> dist(0, SystemParams::dist_std_dev);
 
-    return std::round(dist(e2));
+    return ((float)std::round(dist(e2))) / ((float)SystemParams::dist_std_dev);
 }
 
 void GLWidget::GetClosestSegments(int ptIndex, std::vector<MyLine>& rLines, std::vector<MyLine>& lLines)
@@ -658,7 +520,153 @@ void GLWidget::GetClosestSegments(int ptIndex, std::vector<MyLine>& rLines, std:
         else { rLines.push_back(MyLine(pt1.x, pt1.y, pt2.x, pt2.y)); }
     }
 
-    std::cout << "r " << rLines.size() << " l " << lLines.size() << "\n";
+    //std::cout << "r " << rLines.size() << " l " << lLines.size() << "\n";
+}
+
+MyPoint GLWidget::GetAttractionRepulsion2(int ptIdx)
+{
+    MyPoint curPt = _points[ptIdx];
+
+    std::vector<MyLine> rLines;
+    std::vector<MyLine> lLines;
+    std::vector<MyPoint> rPoints;
+    std::vector<MyPoint> lPoints;
+
+    GetClosestSegments(ptIdx, rLines, lLines);
+    GetClosestPoints(curPt, rLines, lLines, rPoints, lPoints);
+
+    float aX = 0.0f;
+    float aY = 0.0f;
+
+    // right
+    for(size_t a = 0; a < rPoints.size(); a++)
+    {
+        MyPoint minVec = curPt - rPoints[a];
+        float lVec = minVec.Length();
+
+        // fix me
+        if(lVec >= 0.1f * SystemParams::radius_a_r)
+        {
+            float lj = GetLennardJones(lVec / (SystemParams::D * 1.0f));
+            MyPoint fij = (minVec / lVec) * lj;
+            aX += fij.x;
+            aY += fij.y;
+        }
+
+    }
+
+    // left
+    for(size_t a = 0; a < lPoints.size(); a++)
+    {
+        MyPoint minVec = curPt - lPoints[a];
+        float lVec = minVec.Length();
+
+        // fix me
+        if(lVec >= 0.1f * SystemParams::radius_a_r)
+        {
+            float lj = GetLennardJones(lVec / (SystemParams::D * 1.0f));
+            MyPoint fij = (minVec / lVec) * lj;
+            aX += fij.x;
+            aY += fij.y;
+        }
+    }
+
+    return MyPoint(aX, aY) * SystemParams::f_a;
+}
+
+// this doesn't work
+MyPoint GLWidget::GetAttractionRepulsion1(int ptIdx)
+{
+    MyPoint curPt = _points[ptIdx];
+
+    std::vector<MyLine> rLines;
+    std::vector<MyLine> lLines;
+    std::vector<MyPoint> rPoints;
+    std::vector<MyPoint> lPoints;
+
+    GetClosestSegments(ptIdx, rLines, lLines);
+    GetClosestPoints(curPt, rLines, lLines, rPoints, lPoints);
+
+    float aX = 0.0f;
+    float aY = 0.0f;
+
+    // right f_i_j
+    for(size_t a = 0; a < rPoints.size(); a++)
+    {
+        MyPoint minVec = curPt - rPoints[a];
+        float lVec = minVec.Length();
+
+        float lj = GetLennardJones(lVec / (SystemParams::D * 1.0f));
+        //float lj = 0.1f;
+
+        if(lj <= 1e-8) continue;
+
+        MyPoint fij = minVec / lVec * lj;
+
+        //std::cout << "lVec lj fij " << lVec << " " << lj << " (" << fij.x << ", " << fij.y << ")\n";
+
+        //if(isnan(fij.x)) fij.x = 0;
+        //if(isnan(fij.y)) fij.y = 0;
+
+        aX += fij.x;
+        aY += fij.y;
+    }
+
+    // left
+    for(size_t a = 0; a < lPoints.size(); a++)
+    {
+        MyPoint minVec = curPt - lPoints[a];
+        float lVec = minVec.Length();
+
+        float lj = GetLennardJones(lVec / (SystemParams::D * 1.0f));
+        //float lj = 0.1f;
+
+        if(lj <= 1e-8) continue;
+
+        MyPoint fij = minVec / lVec * lj;
+
+        //std::cout << "lVec lj fij " << lVec << " " << lj << " (" << fij.x << ", " << fij.y << ")\n";
+
+        //if(isnan(fij.x)) fij.x = 0;
+        //if(isnan(fij.y)) fij.y = 0;
+
+        aX += fij.x;
+        aY += fij.y;
+    }
+
+    return MyPoint(aX, aY) * SystemParams::f_a;
+}
+
+// this might work
+float GLWidget::GetLennardJones(float r)
+{
+    float dljr = SystemParams::delta_l_j / r;
+    float pow_6_dljr = pow(dljr, 6.0);
+    return (pow_6_dljr * pow_6_dljr) - pow_6_dljr;
+}
+
+void GLWidget::GetClosestPoints(MyPoint curPt,
+                                std::vector<MyLine> rLines,
+                                std::vector<MyLine> lLines,
+                                std::vector<MyPoint>& rPoints,
+                                std::vector<MyPoint>& lPoints)
+{
+    rPoints.clear();
+    lPoints.clear();
+
+    // r points
+    for(size_t a = 0; a < rLines.size(); a++)
+    {
+        MyPoint closestPt = GetClosestPointToALine(MyPoint(rLines[a].XA, rLines[a].YA), MyPoint(rLines[a].XB, rLines[a].YB), curPt);
+        rPoints.push_back(closestPt);
+    }
+
+    // l points
+    for(size_t a = 0; a < lLines.size(); a++)
+    {
+        MyPoint closestPt = GetClosestPointToALine(MyPoint(lLines[a].XA, lLines[a].YA), MyPoint(lLines[a].XB, lLines[a].YB), curPt);
+        lPoints.push_back(closestPt);
+    }
 }
 
 MyPoint GLWidget::GetClosestPointToALine(MyPoint v, MyPoint w, MyPoint p)
@@ -712,10 +720,6 @@ void GLWidget::PreparePointsVAO(std::vector<MyPoint> points, QOpenGLBuffer* ptsV
 
     ptsVao->release();
 }
-
-//void GLWidget::PrepareLinesVAO(std::vector<MyPoint> points, QOpenGLBuffer* linesVbo, QOpenGLVertexArrayObject* linesVao, QVector3D vecCol)
-//{
-//}
 
 void GLWidget::PrepareLinesVAO(std::vector<MyLine> lines, QOpenGLBuffer* linesVbo, QOpenGLVertexArrayObject* linesVao, QVector3D vecCol)
 {
