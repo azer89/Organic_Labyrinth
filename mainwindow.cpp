@@ -28,6 +28,7 @@ void MainWindow::AnimationThread()
 
     ui->timeLabel->setText("Time: " + QString::number(duration));
     ui->pointsLabel->setText("# Points: " + QString::number(this->ui->widget->GetGLWidget()->GetNPoints()));
+    ui->iterLabel->setText("Iteration: " + QString::number(this->ui->widget->GetGLWidget()->GetCurrentIter()));
 
     this->ui->widget->GetGLWidget()->repaint();
     if(this->ui->widget->GetGLWidget()->IsCalculationDone())

@@ -24,6 +24,11 @@ private:
                      //  0 init
                      //  1 running
 
+    // random
+    std::random_device _rd;
+    std::mt19937 _e2;
+    std::normal_distribution<> _dist;
+
     // image size
     int _img_width;
     int _img_height;
@@ -98,9 +103,9 @@ private:
 
    MyPoint GetClosestPointToALine(MyPoint v, MyPoint w, MyPoint p);
 
-   MyPoint GetAttractionRepulsion1(int ptIdx);
-   MyPoint GetAttractionRepulsion2(int ptIdx);
-   MyPoint GetAttractionRepulsion3(int ptIdx);
+   //MyPoint GetAttractionRepulsion1(int ptIdx);
+   //MyPoint GetAttractionRepulsion2(int ptIdx);
+   MyPoint GetAttractionRepulsion(int ptIdx);
    float GetLennardJones(float r);
 
    void PreparePointsVAO(std::vector<MyPoint> points, QOpenGLBuffer* ptsVbo, QOpenGLVertexArrayObject* ptsVao, QVector3D vecCol);
@@ -123,6 +128,7 @@ public:
     // destructor
     ~GLWidget();
 
+    int GetCurrentIter() { return _currentIter; }
     int GetNPoints(){return _points.size();}
     bool IsCalculationDone(){ return _iterStatus == -1; }
 

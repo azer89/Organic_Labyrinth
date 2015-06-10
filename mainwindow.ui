@@ -32,19 +32,6 @@
        </size>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
-       <item row="0" column="1">
-        <widget class="QLabel" name="pointsLabel">
-         <property name="maximumSize">
-          <size>
-           <width>16777215</width>
-           <height>20</height>
-          </size>
-         </property>
-         <property name="text">
-          <string># Points: </string>
-         </property>
-        </widget>
-       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="timeLabel">
          <property name="maximumSize">
@@ -58,10 +45,31 @@
          </property>
         </widget>
        </item>
+       <item row="0" column="2">
+        <widget class="QLabel" name="pointsLabel">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>20</height>
+          </size>
+         </property>
+         <property name="text">
+          <string># Points: 0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="iterLabel">
+         <property name="text">
+          <string>Iteration: 0</string>
+         </property>
+        </widget>
+       </item>
       </layout>
       <zorder>pointsLabel</zorder>
       <zorder>pointsLabel</zorder>
       <zorder>timeLabel</zorder>
+      <zorder>iterLabel</zorder>
      </widget>
     </item>
    </layout>

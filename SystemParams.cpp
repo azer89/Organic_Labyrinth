@@ -1,10 +1,12 @@
 
 #include "SystemParams.h"
 
+#include <limits>
+
 // slices of the initial circle
 int SystemParams::circle_init_slices = 4; // 6 hexagon
 // radius of the initial circle
-float SystemParams::circle_radius = 5.0f;
+float SystemParams::circle_radius = 15.0f;
 
 
 // max length of each line segment
@@ -40,4 +42,4 @@ float SystemParams::kdtree_radius = SystemParams::radius_1 + SystemParams::D;
 int SystemParams::n_min = 0;
 
 // max iteration
-int SystemParams::max_iter = 10000000;
+int SystemParams::max_iter = std::numeric_limits<int>::max();
