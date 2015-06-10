@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include <QTimer>
 
+#include <ctime>
+
 namespace Ui {
 class MainWindow;
 }
@@ -19,6 +21,8 @@ public:
 private:
     Ui::MainWindow *ui;
     QTimer* animTimer;
+
+    std::clock_t startTime;
 
 private slots:
     // thread to open image

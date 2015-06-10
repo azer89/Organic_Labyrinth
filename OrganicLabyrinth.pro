@@ -24,7 +24,9 @@ HEADERS  += mainwindow.h \
     SystemParams.h \
     MyPoint.h \
     MyLine.h \
-    VertexData.h
+    VertexData.h \
+    LineCloud.h \
+    NanoFLANN.h
 
 FORMS    += mainwindow.ui
 

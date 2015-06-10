@@ -12,11 +12,15 @@ public:
     // y
     double y;
 
+    // custom
+    int index;
+
     // Default constructor
     MyPoint()
     {
         this->x = -1;
         this->y = -1;
+        this->index = -1;
     }
 
     // Constructor
@@ -24,6 +28,7 @@ public:
     {
         this->x = x;
         this->y = y;
+        this->index = -1;
     }
 
     // Scale a point

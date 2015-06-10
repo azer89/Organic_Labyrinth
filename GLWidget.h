@@ -1,11 +1,6 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
-//#include "stdafx.h"
-//#include "MyPoint.h"
-//#include "MyLine.h"
-//#include "MyIndexedLine.h"
-
 #include <QMatrix4x4>
 #include <QtOpenGL/QGLWidget>
 #include <QOpenGLVertexArrayObject>
@@ -37,73 +32,78 @@ private:
     QOpenGLShaderProgram* _shaderProgram;
 
     // points
-    std::vector<MyPoint> _points;
-    QOpenGLBuffer _pointsVbo;
-    QOpenGLVertexArrayObject _pointsVao;
-
-    // the selected point
-    bool _drawSelPoint;
-    MyPoint _selPoint;
-    QOpenGLBuffer _selPointsVbo;
-    QOpenGLVertexArrayObject _selPointsVao;
-
-    // right points (debug)
-    std::vector<MyPoint> _rPoints;
-    QOpenGLBuffer _rPointsVbo;
-    QOpenGLVertexArrayObject _rPointsVao;
-
-    // left points (debug)
-    std::vector<MyPoint> _lPoints;
-    QOpenGLBuffer _lPointsVbo;
-    QOpenGLVertexArrayObject _lPointsVao;
-
-    // right lines (debug)
-    std::vector<MyLine> _rLines;
-    QOpenGLBuffer _rLinesVbo;
-    QOpenGLVertexArrayObject _rLinesVao;
-
-
-    // left lines (debug)
-    std::vector<MyLine> _lLines;
-    QOpenGLBuffer _lLinesVbo;
-    QOpenGLVertexArrayObject _lLinesVao;
+    std::vector<MyPoint>        _points;
+    QOpenGLBuffer               _pointsVbo;
+    QOpenGLVertexArrayObject    _pointsVao;
 
     // lines
-    QOpenGLBuffer _linesVbo;
-    QOpenGLVertexArrayObject _linesVao;
+    QOpenGLBuffer               _linesVbo;
+    QOpenGLVertexArrayObject    _linesVao;
+
+    // the selected point
+    bool                        _drawSelPoint;
+    MyPoint                     _selPoint;
+    QOpenGLBuffer               _selPointsVbo;
+    QOpenGLVertexArrayObject    _selPointsVao;
 
     // for rendering
-    int _mvpMatrixLocation;
-    int _colorLocation;
-    QMatrix4x4 _perspMatrix;
-    QMatrix4x4 _transformMatrix;
+    int         _mvpMatrixLocation;
+    int         _colorLocation;
+    QMatrix4x4  _perspMatrix;
+    QMatrix4x4  _transformMatrix;
+
+    // right points (debug)
+    //std::vector<MyPoint> _rPoints;
+    //QOpenGLBuffer _rPointsVbo;
+    //QOpenGLVertexArrayObject _rPointsVao;
+
+    // left points (debug)
+    //std::vector<MyPoint> _lPoints;
+    //QOpenGLBuffer _lPointsVbo;
+    //QOpenGLVertexArrayObject _lPointsVao;
+
+    // right lines (debug)
+    //std::vector<MyLine> _rLines;
+    //QOpenGLBuffer _rLinesVbo;
+    //QOpenGLVertexArrayObject _rLinesVao;
+
+    // left lines (debug)
+    //std::vector<MyLine> _lLines;
+    //QOpenGLBuffer _lLinesVbo;
+    //QOpenGLVertexArrayObject _lLinesVao;
+
+
 
 private:
    void InitCurve();
    void EvolveCurve();
    void PaintCurve();
    void CreateCurveVAO();
+
    void ResampleCurve();
-
    void UniformResample(std::vector<MyPoint>& oriCurve, std::vector<MyPoint>& resampleCurve, double maxDist);
-   float RandomNumber();
+   float GetRandomNumber();
 
-   void GetClosestSegments(int ptIndex, std::vector<MyLine>& rLines, std::vector<MyLine>& lLines);
+   //void GetClosestSegments(int ptIndex, std::vector<MyLine>& cLines);
    void GetClosestPoints(MyPoint curPt,
-                         std::vector<MyLine> rLines,
-                         std::vector<MyLine> lLines,
-                         std::vector<MyPoint>& rPoints,
-                         std::vector<MyPoint>& lPoints);
+                         std::vector<MyPoint>& cPoints);
+
+   //void GetClosestSegments(int ptIndex, std::vector<MyLine>& rLines, std::vector<MyLine>& lLines);
+   //void GetClosestPoints(MyPoint curPt,
+   //                      std::vector<MyLine> rLines,
+   //                      std::vector<MyLine> lLines,
+   //                      std::vector<MyPoint>& rPoints,
+   //                      std::vector<MyPoint>& lPoints);
 
 
    MyPoint GetClosestPointToALine(MyPoint v, MyPoint w, MyPoint p);
 
    MyPoint GetAttractionRepulsion1(int ptIdx);
    MyPoint GetAttractionRepulsion2(int ptIdx);
+   MyPoint GetAttractionRepulsion3(int ptIdx);
    float GetLennardJones(float r);
 
    void PreparePointsVAO(std::vector<MyPoint> points, QOpenGLBuffer* ptsVbo, QOpenGLVertexArrayObject* ptsVao, QVector3D vecCol);
-   //void PrepareLinesVAO(std::vector<MyPoint> points, QOpenGLBuffer* linesVbo, QOpenGLVertexArrayObject* linesVao, QVector3D vecCol);
    void PrepareLinesVAO(std::vector<MyLine> lines, QOpenGLBuffer* linesVbo, QOpenGLVertexArrayObject* linesVao, QVector3D vecCol);
 
 protected:
@@ -116,7 +116,6 @@ protected:
 
     void resizeGL(int width, int height);
 
-
 public:
 
     // constructor
@@ -124,7 +123,9 @@ public:
     // destructor
     ~GLWidget();
 
+    int GetNPoints(){return _points.size();}
     bool IsCalculationDone(){ return _iterStatus == -1; }
+
     void StartEvolution(){ _iterStatus = 0; }
 
     QSize GetCanvasSize() { return QSize(_img_width, _img_height); }

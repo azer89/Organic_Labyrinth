@@ -9,6 +9,9 @@
 #include "SystemParams.h"
 #include "VertexData.h"
 
+#include "LineCloud.h"
+#include "NanoFLANN.h"
+
 GLWidget::GLWidget(QGLFormat format, QWidget *parent) :
     QGLWidget(format, parent),
     _isMouseDown(false),
@@ -18,11 +21,7 @@ GLWidget::GLWidget(QGLFormat format, QWidget *parent) :
     _img_height(10),
     _iterStatus(-1),
     _drawSelPoint(false)
-
 {
-//#if (QT_VERSION >= QT_VERSION_CHECK(5, 1, 0))
-//    std::cout << "Qt version >= 5.1.0\n";
-//#endif
 }
 
 
@@ -142,14 +141,15 @@ void GLWidget::mousePressEvent(int x, int y)
         }
     }
 
-    GetClosestSegments(idx, _rLines, _lLines);
-    GetClosestPoints(_selPoint, _rLines, _lLines, _rPoints, _lPoints);
-
     // SELECTED POINTS
     QVector3D vecCol = QVector3D(0.0, 0.0, 1.0);
     std::vector<MyPoint> points;
     points.push_back(_selPoint);
     PreparePointsVAO(points, &_selPointsVbo, &_selPointsVao, vecCol);
+
+    /*
+    GetClosestSegments(idx, _rLines, _lLines);
+    GetClosestPoints(_selPoint, _rLines, _lLines, _rPoints, _lPoints);
 
     // R LINES
     vecCol = QVector3D(1.0, 0.0, 1.0);
@@ -166,9 +166,8 @@ void GLWidget::mousePressEvent(int x, int y)
 
     // L POINTS
     vecCol = QVector3D(0.0, 1.0, 1.0);
-    PreparePointsVAO(_lPoints, &_lPointsVbo, &_lPointsVao, vecCol);
+    PreparePointsVAO(_lPoints, &_lPointsVbo, &_lPointsVao, vecCol);*/
 }
-
 
 // Mouse is moved
 void GLWidget::mouseMoveEvent(int x, int y)
@@ -221,11 +220,11 @@ void GLWidget::InitCurve()
 
     MyPoint centerPt(this->_img_width / 2, this->_img_height / 2);
 
-    float addValue = (M_PI * 2.0 / (float)SystemParams::init_slices);
+    float addValue = (M_PI * 2.0 / (float)SystemParams::circle_init_slices);
     for(float a = 0.0; a < M_PI * 2.0; a += addValue)
     {
-        float xPt = centerPt.x + SystemParams::radius * sin(a);
-        float yPt = centerPt.y + SystemParams::radius * cos(a);
+        float xPt = centerPt.x + SystemParams::circle_radius * sin(a);
+        float yPt = centerPt.y + SystemParams::circle_radius * cos(a);
         _points.push_back(MyPoint(xPt, yPt));
     }
 
@@ -243,7 +242,7 @@ void GLWidget::CreateCurveVAO()
     PreparePointsVAO(_points, &_pointsVbo, &_pointsVao, vecCol);
 
     // LINES VAO
-    vecCol = QVector3D(0.0, 1.0, 0.0);
+    vecCol = QVector3D(0.0, 0.0, 0.0);
     std::vector<MyLine> lines;
     for(size_t a = 0; a < _points.size(); a++)
     {
@@ -255,85 +254,81 @@ void GLWidget::CreateCurveVAO()
 
 void GLWidget::ResampleCurve()
 {
+
+    // a really simple resampling (the version from the paper)
     std::vector<MyPoint> tempPoints;
 
-    // fix me
-    float dFactor = 0.9f;
-
-    // stupid hack
+    // hack
     MyPoint firstPt = _points[0];
     _points.push_back(firstPt);
+    float threshold1 = SystemParams::D * SystemParams::k_max;
+    float threshold2 = SystemParams::D * SystemParams::k_min;
 
-    // a really simple resampling (a version from the paper)
     for(size_t a = 0; a < _points.size() - 1;)
     {
         MyPoint pt1 = _points[a];
-        MyPoint pt2 = _points[a+1];
+        MyPoint pt2 = _points[a + 1];
 
         tempPoints.push_back(pt1);
 
-        if(pt1.Distance(pt2) > SystemParams::D * dFactor)   // split
+        if(pt1.Distance(pt2) > threshold1)   // split
         {
             MyPoint newPt = pt1 + (pt2 - pt1) * 0.5;
             tempPoints.push_back(newPt);
-            a++;
+            a += 1;
         }
-        else    // delete / skip next
+        else if(pt1.Distance(pt2) < threshold2)    // delete / skip next
         {
             a += 2;
+        }
+        else    // do nothing
+        {
+            a += 1;
         }
     }
 
     // rebuild curve
     _points.clear();
-    for(size_t a = 0; a < tempPoints.size(); a++)
-        { _points.push_back(tempPoints[a]); }
+    _points = std::vector<MyPoint>(tempPoints);
 
-    /*
+    // hack
+    if(_points[_points.size() - 1].Distance(_points[0]) < threshold1 && _points.size() > 1)
+        { _points.erase(_points.begin()); }
+
     // uniform resampling (more precise)
+    /*
     std::vector<MyPoint> tempPoints;
     UniformResample(_points, tempPoints, SystemParams::D);
     _points.clear();
     for(size_t a = 0; a < tempPoints.size(); a++)
-    {
-        _points.push_back(tempPoints[a]);
-    }*/
+        { _points.push_back(tempPoints[a]); }
+    */
 }
 
 void GLWidget::EvolveCurve()
 {
-    //std::cout << "iteration " << _currentIter << "\n";
     if(_currentIter == SystemParams::max_iter - 1)
     {
         _iterStatus = -1;
         _drawSelPoint = false;
     }
 
-    std::vector<MyPoint> tempPoints;
-    for(size_t a = 0; a < _points.size(); a++)
-    {
-        tempPoints.push_back(MyPoint(_points[a].x, _points[a].y));
-    }
+    //clone
+    std::vector<MyPoint> tempPoints(_points);
 
     // 1 --- BROWNIAN MOTION
     // fix me, delta is static
     for(size_t a = 0; a < _points.size(); a++)
     {
-        MyPoint pt = _points[a];
+        float l1 = GetRandomNumber();
+        float l2 = GetRandomNumber();
+        float randX = l1 * cos(l2);
+        float randY = l1 * sin(l2);
 
-        //float xB = SystemParams::f_b * (float)RandomNumber() * 1.0f * SystemParams::D;
-        //float yB = SystemParams::f_b * (float)RandomNumber() * 1.0f * SystemParams::D;
-
-        float randX = RandomNumber() * cos(RandomNumber());
-        float randY = RandomNumber() * sin(RandomNumber());
-
-        //std::cout << randX << " " << randY << "\n";
-
-        float xB = SystemParams::f_b * randX * 1.0f * SystemParams::D;
-        float yB = SystemParams::f_b * randY * 1.0f * SystemParams::D;
+        float xB = SystemParams::f_b * randX * SystemParams::delta_const * SystemParams::D;
+        float yB = SystemParams::f_b * randY * SystemParams::delta_const * SystemParams::D;
 
         tempPoints[a] += MyPoint(xB, yB);
-
     }
 
     // 2 --- FAIRING
@@ -346,24 +341,24 @@ void GLWidget::EvolveCurve()
 
         if(a == 0) { prevPt = _points[_points.size() - 1]; }
         else { prevPt = _points[a - 1]; }
-
         if(a < _points.size() - 1) { nextPt = _points[a + 1]; }
         else { nextPt = _points[0]; }
 
-        float xFactor = (prevPt.x + nextPt.x) / 2.0f;
-        float yFactor = (prevPt.y + nextPt.y) / 2.0f;
 
+        float denominator = SystemParams::delta_const * 2.0;
+        float xFactor = ((prevPt.x * SystemParams::delta_const) + (nextPt.x * SystemParams::delta_const)) / denominator;
+        float yFactor = ((prevPt.y * SystemParams::delta_const) + (nextPt.y * SystemParams::delta_const)) / denominator;
         xFactor -= curPt.x;
         yFactor -= curPt.y;
 
-        tempPoints[a] += MyPoint(SystemParams::f_f * xFactor, SystemParams::f_f * yFactor);
+        tempPoints[a] += (MyPoint(xFactor, yFactor) * SystemParams::f_f);
     }
 
     // 3 --- ATTRACTION - REPULSION
     for(size_t a = 0; a < _points.size(); a++)
     {
-        MyPoint pt = GetAttractionRepulsion2(a);
-        std::cout << "AR " << pt.x << " - " << pt.y << "\n";
+        MyPoint pt = GetAttractionRepulsion3(a);
+        //std::cout << "AR " << pt.x << " - " << pt.y << "\n";
         tempPoints[a] += pt;
     }
 
@@ -375,7 +370,11 @@ void GLWidget::EvolveCurve()
 
     ResampleCurve();
 
-    CreateCurveVAO();
+
+    if(_currentIter % 60 == 0)
+    {
+        CreateCurveVAO();
+    }
 
     _currentIter++;
 }
@@ -388,18 +387,23 @@ void GLWidget::PaintCurve()
     int use_color_location = _shaderProgram->uniformLocation("use_color");
     _shaderProgram->setUniformValue(use_color_location, (GLfloat)1.0);
 
+    /*
     glPointSize(5.0f);
     _pointsVao.bind();
     glDrawArrays(GL_POINTS, 0, _points.size());
     _pointsVao.release();
+    */
 
     if(_drawSelPoint)
     {
+        /*
         glPointSize(15.0f);
         _selPointsVao.bind();
         glDrawArrays(GL_POINTS, 0, 1);
         _selPointsVao.release();
+        */
 
+        /*
         _rPointsVao.bind();
         glDrawArrays(GL_POINTS, 0, _rPoints.size());
         _rPointsVao.release();
@@ -417,6 +421,7 @@ void GLWidget::PaintCurve()
         _rLinesVao.bind();
         glDrawArrays(GL_LINES, 0, _rLines.size() * 2);
         _rLinesVao.release();
+        */
     }
 
     _linesVao.bind();
@@ -473,7 +478,7 @@ void GLWidget::UniformResample(std::vector<MyPoint>& oriCurve, std::vector<MyPoi
     //oriCurve.pop_back();
 }
 
-float GLWidget::RandomNumber()
+float GLWidget::GetRandomNumber()
 {
     std::random_device rd;
     std::mt19937 e2(rd());
@@ -482,51 +487,50 @@ float GLWidget::RandomNumber()
     return ((float)std::round(dist(e2))) / ((float)SystemParams::dist_std_dev);
 }
 
-void GLWidget::GetClosestSegments(int ptIndex, std::vector<MyLine>& rLines, std::vector<MyLine>& lLines)
+MyPoint GLWidget::GetAttractionRepulsion3(int ptIdx)
 {
-    // clear
-    rLines.clear();
-    lLines.clear();
-
-    int ptSize = _points.size();
-    MyPoint oriPt = _points[ptIndex];
-
-    // find left (backward)
-    int curIdx = ptIndex;
-    bool shouldStop = false;
-    for(size_t a = 0; a < SystemParams::search_a_r && !shouldStop; a++)
+    std::vector<MyPoint> cPoints;
+    GetClosestPoints(_points[ptIdx], cPoints);
+    float aX = 0.0f;
+    float aY = 0.0f;
+    for(size_t a = 0; a < cPoints.size(); a++)
     {
-        MyPoint pt1 = _points[curIdx];
-        curIdx--;
-        if(curIdx < 0){ curIdx = ptSize - 1; }
-        MyPoint pt2 = _points[curIdx];
+        MyPoint minVec = _points[ptIdx] - cPoints[a];
+        float lVec = minVec.Length();
 
-        if(pt2.Distance(oriPt) > SystemParams::radius_a_r) {shouldStop = true;}
-        else { lLines.push_back(MyLine(pt1.x, pt1.y, pt2.x, pt2.y)); }
+        int val1 = abs(cPoints[a].index - ptIdx);
+        int val2 = abs(cPoints[a].index + 1 - ptIdx);
+
+        if(std::max(val1, val2) > SystemParams::n_min &&
+           lVec < (SystemParams::delta_const * SystemParams::radius_1))
+        {
+            float ljParam = lVec / (SystemParams::D * SystemParams::delta_const);
+            float lj = GetLennardJones(ljParam);
+            MyPoint fij = (minVec / lVec ) * lj;
+
+            // -20 20
+            if(fij.Length() > -20.0 && fij.Length() < 20.0)
+            {
+                aX += fij.x;
+                aY += fij.y;
+            }
+            else
+            {
+                //std::cout << "fij  " << fij.x << " " << fij.y << "\n";
+            }
+        }
     }
 
-
-    // find right (upward)
-    curIdx = ptIndex;
-    shouldStop = false;
-    for(size_t a = 0; a < SystemParams::search_a_r && !shouldStop; a++)
-    {
-        MyPoint pt1 = _points[curIdx];
-        curIdx++;
-        if(curIdx == ptSize){ curIdx = 0; }
-        MyPoint pt2 = _points[curIdx];
-
-        if(pt2.Distance(oriPt) > SystemParams::radius_a_r) {shouldStop = true;}
-        else { rLines.push_back(MyLine(pt1.x, pt1.y, pt2.x, pt2.y)); }
-    }
-
-    //std::cout << "r " << rLines.size() << " l " << lLines.size() << "\n";
+    return MyPoint(aX, aY) * SystemParams::f_a;
 }
+
+
 
 MyPoint GLWidget::GetAttractionRepulsion2(int ptIdx)
 {
     MyPoint curPt = _points[ptIdx];
 
+    /*
     std::vector<MyLine> rLines;
     std::vector<MyLine> lLines;
     std::vector<MyPoint> rPoints;
@@ -534,10 +538,11 @@ MyPoint GLWidget::GetAttractionRepulsion2(int ptIdx)
 
     GetClosestSegments(ptIdx, rLines, lLines);
     GetClosestPoints(curPt, rLines, lLines, rPoints, lPoints);
-
+    */
     float aX = 0.0f;
     float aY = 0.0f;
 
+    /*
     // right
     for(size_t a = 0; a < rPoints.size(); a++)
     {
@@ -570,15 +575,17 @@ MyPoint GLWidget::GetAttractionRepulsion2(int ptIdx)
             aY += fij.y;
         }
     }
-
+    */
     return MyPoint(aX, aY) * SystemParams::f_a;
 }
+
+
 
 // this doesn't work
 MyPoint GLWidget::GetAttractionRepulsion1(int ptIdx)
 {
     MyPoint curPt = _points[ptIdx];
-
+    /*
     std::vector<MyLine> rLines;
     std::vector<MyLine> lLines;
     std::vector<MyPoint> rPoints;
@@ -586,10 +593,10 @@ MyPoint GLWidget::GetAttractionRepulsion1(int ptIdx)
 
     GetClosestSegments(ptIdx, rLines, lLines);
     GetClosestPoints(curPt, rLines, lLines, rPoints, lPoints);
-
+    */
     float aX = 0.0f;
     float aY = 0.0f;
-
+    /*
     // right f_i_j
     for(size_t a = 0; a < rPoints.size(); a++)
     {
@@ -633,7 +640,7 @@ MyPoint GLWidget::GetAttractionRepulsion1(int ptIdx)
         aX += fij.x;
         aY += fij.y;
     }
-
+    */
     return MyPoint(aX, aY) * SystemParams::f_a;
 }
 
@@ -645,29 +652,7 @@ float GLWidget::GetLennardJones(float r)
     return (pow_6_dljr * pow_6_dljr) - pow_6_dljr;
 }
 
-void GLWidget::GetClosestPoints(MyPoint curPt,
-                                std::vector<MyLine> rLines,
-                                std::vector<MyLine> lLines,
-                                std::vector<MyPoint>& rPoints,
-                                std::vector<MyPoint>& lPoints)
-{
-    rPoints.clear();
-    lPoints.clear();
 
-    // r points
-    for(size_t a = 0; a < rLines.size(); a++)
-    {
-        MyPoint closestPt = GetClosestPointToALine(MyPoint(rLines[a].XA, rLines[a].YA), MyPoint(rLines[a].XB, rLines[a].YB), curPt);
-        rPoints.push_back(closestPt);
-    }
-
-    // l points
-    for(size_t a = 0; a < lLines.size(); a++)
-    {
-        MyPoint closestPt = GetClosestPointToALine(MyPoint(lLines[a].XA, lLines[a].YA), MyPoint(lLines[a].XB, lLines[a].YB), curPt);
-        lPoints.push_back(closestPt);
-    }
-}
 
 MyPoint GLWidget::GetClosestPointToALine(MyPoint v, MyPoint w, MyPoint p)
 {
@@ -756,3 +741,213 @@ void GLWidget::PrepareLinesVAO(std::vector<MyLine> lines, QOpenGLBuffer* linesVb
 
     linesVao->release();
 }
+
+//void GLWidget::GetClosestSegments(int ptIndex, std::vector<MyLine>& cLines)
+//{
+    /*
+    // clear
+    cLines.clear();
+
+    int ptSize = _points.size();
+    MyPoint oriPt = _points[ptIndex];
+
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        MyPoint pt1;
+        MyPoint pt2;
+
+        pt1 = _points[a];
+        if(a < _points.size() - 1) { pt2 = _points[a+1]; }
+        else { pt2 = _points[0]; }
+
+        if(pt2.Distance(oriPt) > SystemParams::radius_a_r) { continue; }
+    }
+    */
+
+    /*
+    // find left (backward)
+    int curIdx = ptIndex;
+    bool shouldStop = false;
+    for(size_t a = 0; a < SystemParams::search_a_r && !shouldStop; a++)
+    {
+        MyPoint pt1 = _points[curIdx];
+        curIdx--;
+        if(curIdx < 0){ curIdx = ptSize - 1; }
+        MyPoint pt2 = _points[curIdx];
+
+        if(pt2.Distance(oriPt) > SystemParams::radius_a_r) {shouldStop = true;}
+        else { lLines.push_back(MyLine(pt1.x, pt1.y, pt2.x, pt2.y)); }
+    }
+
+
+    // find right (upward)
+    curIdx = ptIndex;
+    shouldStop = false;
+    for(size_t a = 0; a < SystemParams::search_a_r && !shouldStop; a++)
+    {
+        MyPoint pt1 = _points[curIdx];
+        curIdx++;
+        if(curIdx == ptSize){ curIdx = 0; }
+        MyPoint pt2 = _points[curIdx];
+
+        if(pt2.Distance(oriPt) > SystemParams::radius_a_r) {shouldStop = true;}
+        else { rLines.push_back(MyLine(pt1.x, pt1.y, pt2.x, pt2.y)); }
+    }
+    */
+//}
+
+// fix me: brute force
+void GLWidget::GetClosestPoints(MyPoint curPt,
+                      std::vector<MyPoint>& cPoints)
+{
+    // KD TREE
+    using namespace nanoflann;
+    //cPoints.clear();
+    const float search_radius = static_cast<float>(SystemParams::kdtree_radius);
+    LineCloud<float> lineCloud;
+    lineCloud.lines.resize(_points.size());
+
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        MyPoint pt1;
+        //MyPoint pt2;
+
+        //int idx1;
+        //int idx2;
+
+        pt1 = _points[a];
+        //idx1 = a;
+        lineCloud.lines[a].index0 = a;
+        if(a < _points.size() - 1) { /*pt2 = _points[a + 1];*/ lineCloud.lines[a].index1 = a + 1;}
+        else { /*pt2 = _points[0];*/ lineCloud.lines[a].index1 = 0;}
+
+        lineCloud.lines[a].x = pt1.x;
+        lineCloud.lines[a].y = pt1.y;
+        //lineCloud.lines[a].index0 = idx1;
+        //lineCloud.lines[a].index1 = idx2;
+    }
+
+    typedef KDTreeSingleIndexAdaptor< L2_Simple_Adaptor<float, LineCloud<float> >, LineCloud<float>, 2> my_kd_tree_t;
+    my_kd_tree_t   index(2 /*dim*/, lineCloud, KDTreeSingleIndexAdaptorParams(100 /* max leaf */) );
+    index.buildIndex();
+
+    std::vector<std::pair<size_t, float> >  ret_matches;
+    nanoflann::SearchParams params;
+    const float query_pt[2] = { curPt.x, curPt.y};
+    const size_t nMatches = index.radiusSearch(&query_pt[0],search_radius, ret_matches, params);
+
+    for (size_t i = 0; i < nMatches; i++)
+    {
+        int dataIdx = ret_matches[i].first;
+        int idx1 = lineCloud.lines[dataIdx].index0;
+        int idx2 = lineCloud.lines[dataIdx].index1;
+
+        MyPoint pt1 = _points[idx1];
+        MyPoint pt2 = _points[idx2];
+
+        MyPoint closestPt = GetClosestPointToALine(MyPoint(pt1.x, pt1.y), MyPoint(pt2.x, pt2.y), curPt);
+        closestPt.index = idx2;
+        cPoints.push_back(closestPt);
+    }
+
+
+
+
+
+    /*
+    // BRUTE FORCE
+
+    cPoints.clear();
+
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        MyPoint pt1;
+        MyPoint pt2;
+        int idx;
+
+        pt1 = _points[a];
+        if(a < _points.size() - 1) { pt2 = _points[a + 1]; idx = a + 1;}
+        else { pt2 = _points[0]; idx = 0;}
+
+        MyPoint closestPt = GetClosestPointToALine(MyPoint(pt1.x, pt1.y), MyPoint(pt2.x, pt2.y), curPt);
+        closestPt.index = idx;
+
+        float dist = curPt.Distance(closestPt);
+        if( dist > 1e-8 && dist < SystemParams::radius_1)
+        {
+            cPoints.push_back(closestPt);
+        }
+    }
+    */
+}
+
+
+
+/*
+void GLWidget::GetClosestPoints(MyPoint curPt,
+                                std::vector<MyLine> rLines,
+                                std::vector<MyLine> lLines,
+                                std::vector<MyPoint>& rPoints,
+                                std::vector<MyPoint>& lPoints)
+{
+    rPoints.clear();
+    lPoints.clear();
+
+    // r points
+    for(size_t a = 0; a < rLines.size(); a++)
+    {
+        MyPoint closestPt = GetClosestPointToALine(MyPoint(rLines[a].XA, rLines[a].YA), MyPoint(rLines[a].XB, rLines[a].YB), curPt);
+        rPoints.push_back(closestPt);
+    }
+
+    // l points
+    for(size_t a = 0; a < lLines.size(); a++)
+    {
+        MyPoint closestPt = GetClosestPointToALine(MyPoint(lLines[a].XA, lLines[a].YA), MyPoint(lLines[a].XB, lLines[a].YB), curPt);
+        lPoints.push_back(closestPt);
+    }
+}
+*/
+
+/*
+void GLWidget::GetClosestSegments(int ptIndex, std::vector<MyLine>& rLines, std::vector<MyLine>& lLines)
+{
+    // clear
+    rLines.clear();
+    lLines.clear();
+
+    int ptSize = _points.size();
+    MyPoint oriPt = _points[ptIndex];
+
+    // find left (backward)
+    int curIdx = ptIndex;
+    bool shouldStop = false;
+    for(size_t a = 0; a < SystemParams::search_a_r && !shouldStop; a++)
+    {
+        MyPoint pt1 = _points[curIdx];
+        curIdx--;
+        if(curIdx < 0){ curIdx = ptSize - 1; }
+        MyPoint pt2 = _points[curIdx];
+
+        if(pt2.Distance(oriPt) > SystemParams::radius_a_r) {shouldStop = true;}
+        else { lLines.push_back(MyLine(pt1.x, pt1.y, pt2.x, pt2.y)); }
+    }
+
+
+    // find right (upward)
+    curIdx = ptIndex;
+    shouldStop = false;
+    for(size_t a = 0; a < SystemParams::search_a_r && !shouldStop; a++)
+    {
+        MyPoint pt1 = _points[curIdx];
+        curIdx++;
+        if(curIdx == ptSize){ curIdx = 0; }
+        MyPoint pt2 = _points[curIdx];
+
+        if(pt2.Distance(oriPt) > SystemParams::radius_a_r) {shouldStop = true;}
+        else { rLines.push_back(MyLine(pt1.x, pt1.y, pt2.x, pt2.y)); }
+    }
+
+    //std::cout << "r " << rLines.size() << " l " << lLines.size() << "\n";
+}
+*/

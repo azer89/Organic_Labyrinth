@@ -24,11 +24,18 @@
         double XA;	double YA;	// start
         double XB;	double YB;	// end
 
+        // custom
+        int index1;
+        int index2;
+
         // Constructor #1
         MyLine()
         {
             this->XA = -1;	this->YA = -1;
             this->XB = -1;	this->YB = -1;
+
+            this->index1 = -1;
+            this->index2 = -1;
         }
 
         // Constructor #2
@@ -36,12 +43,18 @@
         {
             this->XA = XA;	this->YA = YA;
             this->XB = XB;	this->YB = YB;
+
+            this->index1 = -1;
+            this->index2 = -1;
         }
 
         MyLine(MyPoint pt1, MyPoint pt2)
         {
             this->XA = pt1.x;	this->YA = pt1.y;
             this->XB = pt2.x;	this->YB = pt2.y;
+
+            this->index1 = -1;
+            this->index2 = -1;
         }
 
 
