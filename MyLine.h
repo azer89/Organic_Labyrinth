@@ -21,8 +21,8 @@
     struct MyLine
     {
     public:
-        double XA;	double YA;	// start
-        double XB;	double YB;	// end
+        float XA;	float YA;	// start
+        float XB;	float YB;	// end
 
         // custom
         int index1;
@@ -39,7 +39,7 @@
         }
 
         // Constructor #2
-        MyLine(double XA, double YA, double XB, double YB)
+        MyLine(float XA, float YA, float XB, float YB)
         {
             this->XA = XA;	this->YA = YA;
             this->XB = XB;	this->YB = YB;
@@ -58,7 +58,7 @@
         }
 
 
-        MyLine Resize(double val)
+        MyLine Resize(float val)
         {
             MyLine newL;
 
@@ -87,7 +87,7 @@
         // Direction of the vector
         MyPoint Direction() { return MyPoint(XB - XA, YB - YA);}
 
-        double Magnitude()
+        float Magnitude()
         {
             MyPoint dir = Direction();
             return sqrt(dir.x * dir.x + dir.y * dir.y);
@@ -95,7 +95,7 @@
 
         bool LiesHere(MyPoint pt)
         {
-            double det = (XB - XA) * (pt.y - YA) - (YB - YA) * (pt.x - XA);
+            float det = (XB - XA) * (pt.y - YA) - (YB - YA) * (pt.x - XA);
             if(det > -1e-8 && det < 1e-8) return true;
             return false;
         }
@@ -106,19 +106,19 @@
         //   0 : other else
         int HasSameDirection(MyLine otherLine)
         {
-            double mag1 = Magnitude();
-            double mag2 = otherLine.Magnitude();
+            float mag1 = Magnitude();
+            float mag2 = otherLine.Magnitude();
 
             MyPoint dir1 = Direction();
             MyPoint dir2 = otherLine.Direction();
 
-            double a_dot_b = dir1.Dot(dir2);
-            double a_b_mag = mag1 *  mag2;
+            float a_dot_b = dir1.Dot(dir2);
+            float a_b_mag = mag1 *  mag2;
 
-            double addValue = a_dot_b + a_b_mag;
+            float addValue = a_dot_b + a_b_mag;
             if(addValue > -1e-8 && addValue < 1e-8 ) { return -1; }
 
-            double subsValue = a_dot_b - a_b_mag;
+            float subsValue = a_dot_b - a_b_mag;
 
             if(subsValue > -1e-8 && subsValue < 1e-8 ) { return 1; }
 

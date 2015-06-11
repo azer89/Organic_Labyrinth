@@ -26,6 +26,7 @@ void MainWindow::AnimationThread()
 {
     float duration = ( std::clock() - startTime ) / (double) CLOCKS_PER_SEC;
 
+    this->ui->widget->GetGLWidget()->SetRunningTime(duration);
     ui->timeLabel->setText("Time: " + QString::number(duration));
     ui->pointsLabel->setText("# Points: " + QString::number(this->ui->widget->GetGLWidget()->GetNPoints()));
     ui->iterLabel->setText("Iteration: " + QString::number(this->ui->widget->GetGLWidget()->GetCurrentIter()));

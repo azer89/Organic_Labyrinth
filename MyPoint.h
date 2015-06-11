@@ -7,10 +7,10 @@ struct MyPoint
 {
 public:
     // x
-    double x;
+    float x;
 
     // y
-    double y;
+    float y;
 
     // custom
     int index;
@@ -24,7 +24,7 @@ public:
     }
 
     // Constructor
-    MyPoint(double x, double y)
+    MyPoint(float x, float y)
     {
         this->x = x;
         this->y = y;
@@ -32,7 +32,7 @@ public:
     }
 
     // Scale a point
-    MyPoint Resize(double val)
+    MyPoint Resize(float val)
     {
         MyPoint newP;
         newP.x = this->x * val;
@@ -51,39 +51,39 @@ public:
     // Normalize
     MyPoint Norm()
     {
-        double vlength = std::sqrt( x * x + y * y );
+        float vlength = std::sqrt( x * x + y * y );
         return MyPoint(this->x / vlength, this->y / vlength);
     }
 
     // Euclidean distance
-    double Distance(MyPoint other)
+    float Distance(MyPoint other)
     {
-        double xDist = x - other.x;
-        double yDist = y - other.y;
+        float xDist = x - other.x;
+        float yDist = y - other.y;
         return sqrt(xDist * xDist + yDist * yDist);
     }
 
     // Euclidean distance
-    double Distance(double otherX, double otherY)
+    float Distance(float otherX, float otherY)
     {
-        double xDist = x - otherX;
-        double yDist = y - otherY;
+        float xDist = x - otherX;
+        float yDist = y - otherY;
         return sqrt(xDist * xDist + yDist * yDist);
     }
 
     // squared euclidean distance
-    double DistanceSquared(MyPoint other)
+    float DistanceSquared(MyPoint other)
     {
-        double xDist = x - other.x;
-        double yDist = y - other.y;
+        float xDist = x - other.x;
+        float yDist = y - other.y;
         return (xDist * xDist + yDist * yDist);
     }
 
     // squared euclidean distance
-    double DistanceSquared(double otherX, double otherY)
+    float DistanceSquared(float otherX, float otherY)
     {
-        double xDist = x - otherX;
-        double yDist = y - otherY;
+        float xDist = x - otherX;
+        float yDist = y - otherY;
         return (xDist * xDist + yDist * yDist);
     }
 
@@ -116,13 +116,13 @@ public:
     }
 
     // operator overloading
-    MyPoint operator/ (const double& val) { return MyPoint(x / val, y / val); }
+    MyPoint operator/ (const float& val) { return MyPoint(x / val, y / val); }
 
     // operator overloading
-    MyPoint operator* (const double& val) { return MyPoint(x * val, y * val); }
+    MyPoint operator* (const float& val) { return MyPoint(x * val, y * val); }
 
     // operator overloading
-    MyPoint operator*= (const double& val)
+    MyPoint operator*= (const float& val)
     {
         x *= val;
         y *= val;
@@ -130,7 +130,7 @@ public:
     }
 
     // operator overloading
-    MyPoint operator/= (const double& val)
+    MyPoint operator/= (const float& val)
     {
         x /= val;
         y /= val;
@@ -138,13 +138,13 @@ public:
     }
 
     // length of a vector
-    double Length() { return sqrt(x * x + y * y); }
+    float Length() { return sqrt(x * x + y * y); }
 
     // squared length of a vector
-    double LengthSquared() { return x * x + y * y; }
+    float LengthSquared() { return x * x + y * y; }
 
     // dot product
-    double Dot(MyPoint otherPt) { return x * otherPt.x + y * otherPt.y; }
+    float Dot(MyPoint otherPt) { return x * otherPt.x + y * otherPt.y; }
 
     // cross product
     MyPoint Cross(MyPoint otherPt)
@@ -156,7 +156,7 @@ public:
     // linear dependency test
     bool IsLinearDependent(MyPoint otherPoint)
     {
-        double det = (this->x * otherPoint.y) - (this->y * otherPoint.x);
+        float det = (this->x * otherPoint.y) - (this->y * otherPoint.x);
         if(det > -1e-8 && det < 1e-8) { return true; }
         return false;
     }

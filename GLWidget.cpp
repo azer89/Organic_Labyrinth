@@ -5,6 +5,7 @@
 #include <random>
 
 #include <QGLFormat>
+#include <QSvgGenerator>
 
 #include "SystemParams.h"
 #include "VertexData.h"
@@ -281,8 +282,8 @@ void GLWidget::ResampleCurve()
 
     // hack
     _points.push_back(_points[0]);
-    float threshold1 = SystemParams::D * SystemParams::k_max;
-    float threshold2 = SystemParams::D * SystemParams::k_min;
+    float threshold1 = SystemParams::D * SystemParams::d_split;
+    //float threshold2 = SystemParams::D * SystemParams::k_min;
 
     for(size_t a = 0; a < _points.size() - 1;)
     {
@@ -297,14 +298,18 @@ void GLWidget::ResampleCurve()
             tempPoints.push_back(pt1 + (pt2 - pt1) * 0.5);
             a += 1;
         }
-        else if(pt1.Distance(pt2) < threshold2)    // delete / skip next
+        else
         {
             a += 2;
         }
-        else    // do nothing
-        {
-            a += 1;
-        }
+//        else if(pt1.Distance(pt2) < threshold2)    // delete / skip next
+//        {
+//            a += 2;
+//        }
+//        else    // do nothing
+//        {
+//            a += 1;
+//        }
     }
 
     // rebuild curve
@@ -380,6 +385,7 @@ void GLWidget::EvolveCurve()
     }
 
     // 3 --- ATTRACTION - REPULSION
+    GetClosestPoints();
     for(size_t a = 0; a < _points.size(); a++)
     {
         //MyPoint pt = GetAttractionRepulsion3(a);
@@ -396,7 +402,11 @@ void GLWidget::EvolveCurve()
     */
 
     ResampleCurve();
-    if(_currentIter % 480 == 0) { CreateCurveVAO(); }
+    //if(_currentIter % 500 == 0)
+    //{
+        CreateCurveVAO();
+    //    SaveToSvg();
+    //}
     _currentIter++;
 }
 
@@ -445,6 +455,7 @@ void GLWidget::PaintCurve()
         */
     //}
 
+    glLineWidth(2.0f);
     _linesVao.bind();
     glDrawArrays(GL_LINES, 0, _points.size() * 2);
     _linesVao.release();
@@ -506,171 +517,38 @@ float GLWidget::GetRandomNumber()
     std::mt19937 e2(rd());
     std::normal_distribution<> dist(0, SystemParams::dist_std_dev);
     */
-    return ((float)std::round(_dist(_e2))) / ((float)SystemParams::dist_std_dev);
+    //return ((float)std::round(_dist(_e2))) / ((float)SystemParams::dist_std_dev);
+    return ((float)_dist(_e2)) / ((float)SystemParams::dist_std_dev);
 }
 
 MyPoint GLWidget::GetAttractionRepulsion(int ptIdx)
 {
-    std::vector<MyPoint> cPoints;
-    GetClosestPoints(_points[ptIdx], cPoints);
+    std::vector<MyPoint> cPoints = _allCPoints[ptIdx];
+    //GetClosestPoints(_points[ptIdx], cPoints);
     float aX = 0.0f;
     float aY = 0.0f;
+    float clampVal = SystemParams::ar_clamp;
     for(size_t a = 0; a < cPoints.size(); a++)
     {
         MyPoint minVec = _points[ptIdx] - cPoints[a];
         float lVec = minVec.Length();
+        float lj = GetLennardJones(lVec);
+        MyPoint fij = (minVec / lVec ) * lj;
+        float fij_length = fij.Length();
 
-        //int val1 = abs(cPoints[a].index - ptIdx);
-        //int val2 = abs(cPoints[a].index + 1 - ptIdx);
-
-        //if(/* std::max(val1, val2) > SystemParams::n_min && */
-        //   lVec < (SystemParams::delta_const * SystemParams::radius_1))
-        //{
-            //float ljParam = lVec / (SystemParams::D * SystemParams::delta_const);
-            //float lj = GetLennardJones(ljParam);
-            float lj = GetLennardJones(lVec);
-            MyPoint fij = (minVec / lVec ) * lj;
-
-            // -20 20
-            if(fij.Length() > -20.0 && fij.Length() < 20.0)
-            {
-                aX += fij.x;
-                aY += fij.y;
-            }
-            //else
-            //{
-                //std::cout << "fij  " << fij.x << " " << fij.y << "\n";
-            //}
-        //}
+        if(fij_length > -clampVal && fij_length < clampVal)
+        {
+            aX += fij.x;
+            aY += fij.y;
+        }
     }
 
     return MyPoint(aX, aY) * SystemParams::f_a;
 }
 
-
-
-//MyPoint GLWidget::GetAttractionRepulsion2(int ptIdx)
-//{
-//    MyPoint curPt = _points[ptIdx];
-
-//    /*
-//    std::vector<MyLine> rLines;
-//    std::vector<MyLine> lLines;
-//    std::vector<MyPoint> rPoints;
-//    std::vector<MyPoint> lPoints;
-
-//    GetClosestSegments(ptIdx, rLines, lLines);
-//    GetClosestPoints(curPt, rLines, lLines, rPoints, lPoints);
-//    */
-//    float aX = 0.0f;
-//    float aY = 0.0f;
-
-//    /*
-//    // right
-//    for(size_t a = 0; a < rPoints.size(); a++)
-//    {
-//        MyPoint minVec = curPt - rPoints[a];
-//        float lVec = minVec.Length();
-
-//        // fix me
-//        if(lVec >= 0.1f * SystemParams::radius_a_r)
-//        {
-//            float lj = GetLennardJones(lVec / (SystemParams::D * 1.0f));
-//            MyPoint fij = (minVec / lVec) * lj;
-//            aX += fij.x;
-//            aY += fij.y;
-//        }
-
-//    }
-
-//    // left
-//    for(size_t a = 0; a < lPoints.size(); a++)
-//    {
-//        MyPoint minVec = curPt - lPoints[a];
-//        float lVec = minVec.Length();
-
-//        // fix me
-//        if(lVec >= 0.1f * SystemParams::radius_a_r)
-//        {
-//            float lj = GetLennardJones(lVec / (SystemParams::D * 1.0f));
-//            MyPoint fij = (minVec / lVec) * lj;
-//            aX += fij.x;
-//            aY += fij.y;
-//        }
-//    }
-//    */
-//    return MyPoint(aX, aY) * SystemParams::f_a;
-//}
-
-
-
-//// this doesn't work
-//MyPoint GLWidget::GetAttractionRepulsion1(int ptIdx)
-//{
-//    MyPoint curPt = _points[ptIdx];
-//    /*
-//    std::vector<MyLine> rLines;
-//    std::vector<MyLine> lLines;
-//    std::vector<MyPoint> rPoints;
-//    std::vector<MyPoint> lPoints;
-
-//    GetClosestSegments(ptIdx, rLines, lLines);
-//    GetClosestPoints(curPt, rLines, lLines, rPoints, lPoints);
-//    */
-//    float aX = 0.0f;
-//    float aY = 0.0f;
-//    /*
-//    // right f_i_j
-//    for(size_t a = 0; a < rPoints.size(); a++)
-//    {
-//        MyPoint minVec = curPt - rPoints[a];
-//        float lVec = minVec.Length();
-
-//        float lj = GetLennardJones(lVec / (SystemParams::D * 1.0f));
-//        //float lj = 0.1f;
-
-//        if(lj <= 1e-8) continue;
-
-//        MyPoint fij = minVec / lVec * lj;
-
-//        //std::cout << "lVec lj fij " << lVec << " " << lj << " (" << fij.x << ", " << fij.y << ")\n";
-
-//        //if(isnan(fij.x)) fij.x = 0;
-//        //if(isnan(fij.y)) fij.y = 0;
-
-//        aX += fij.x;
-//        aY += fij.y;
-//    }
-
-//    // left
-//    for(size_t a = 0; a < lPoints.size(); a++)
-//    {
-//        MyPoint minVec = curPt - lPoints[a];
-//        float lVec = minVec.Length();
-
-//        float lj = GetLennardJones(lVec / (SystemParams::D * 1.0f));
-//        //float lj = 0.1f;
-
-//        if(lj <= 1e-8) continue;
-
-//        MyPoint fij = minVec / lVec * lj;
-
-//        //std::cout << "lVec lj fij " << lVec << " " << lj << " (" << fij.x << ", " << fij.y << ")\n";
-
-//        //if(isnan(fij.x)) fij.x = 0;
-//        //if(isnan(fij.y)) fij.y = 0;
-
-//        aX += fij.x;
-//        aY += fij.y;
-//    }
-//    */
-//    return MyPoint(aX, aY) * SystemParams::f_a;
-//}
-
-// this might work
 float GLWidget::GetLennardJones(float r)
 {
-    float dljr = SystemParams::delta_l_j / r;
+    float dljr = SystemParams::sigma_l_j / r;
     //float pow_6_dljr = pow(dljr, 6.0);    // more precise
     float pow_6_dljr = fastPow(dljr, 6.0);  // approximation
     return (pow_6_dljr * pow_6_dljr) - pow_6_dljr;
@@ -764,6 +642,69 @@ void GLWidget::PrepareLinesVAO(std::vector<MyLine> lines, QOpenGLBuffer* linesVb
     linesVao->release();
 }
 
+void GLWidget::GetClosestPoints()
+{
+    _allCPoints.clear();
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        _allCPoints.push_back(std::vector<MyPoint>());
+    }
+
+    // KD TREE
+    using namespace nanoflann;
+    const float search_radius = static_cast<float>(SystemParams::kdtree_radius);
+    LineCloud<float> lineCloud;
+    lineCloud.lines.resize(_points.size());
+
+    // hack
+    _points.push_back(_points[0]);
+
+    for(size_t a = 0; a < _points.size() - 1; a++)
+    {
+        MyPoint pt1;
+        //MyPoint pt2;
+
+        pt1 = _points[a];
+        lineCloud.lines[a].x = pt1.x;
+        lineCloud.lines[a].y = pt1.y;
+
+        lineCloud.lines[a].index0 = a;
+        if(a < _points.size() - 1) { /*pt2 = _points[a + 1];*/ lineCloud.lines[a].index1 = a + 1;}
+        else { /*pt2 = _points[0];*/ lineCloud.lines[a].index1 = 0;}
+    }
+
+    typedef KDTreeSingleIndexAdaptor< L2_Simple_Adaptor<float, LineCloud<float> >, LineCloud<float>, 2> my_kd_tree_t;
+    my_kd_tree_t   index(2 /*dim*/, lineCloud, KDTreeSingleIndexAdaptorParams(10 /* max leaf */) );
+    index.buildIndex();
+
+    // hack
+    _points.pop_back();
+
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        MyPoint curPt = _points[a];
+        std::vector<std::pair<size_t, float> >  ret_matches;
+        nanoflann::SearchParams params;
+        const float query_pt[2] = { curPt.x, curPt.y};
+        const size_t nMatches = index.radiusSearch(&query_pt[0],search_radius, ret_matches, params);
+
+        for (size_t i = 0; i < nMatches; i++)
+        {
+            int dataIdx = ret_matches[i].first;
+            int idx1 = lineCloud.lines[dataIdx].index0;
+            int idx2 = lineCloud.lines[dataIdx].index1;
+
+            MyPoint pt1 = _points[idx1];
+            MyPoint pt2 = _points[idx2];
+
+            //MyPoint closestPt = GetClosestPointToALine(MyPoint(pt1.x, pt1.y), MyPoint(pt2.x, pt2.y), curPt);  // more precise
+            MyPoint closestPt = pt1 + (pt2 - pt1) * 0.5;    // approximation
+            closestPt.index = idx2;
+            _allCPoints[a].push_back(closestPt);
+        }
+    }
+}
+
 
 void GLWidget::GetClosestPoints(MyPoint curPt, std::vector<MyPoint>& cPoints)
 {
@@ -794,6 +735,9 @@ void GLWidget::GetClosestPoints(MyPoint curPt, std::vector<MyPoint>& cPoints)
     my_kd_tree_t   index(2 /*dim*/, lineCloud, KDTreeSingleIndexAdaptorParams(10 /* max leaf */) );
     index.buildIndex();
 
+    // hack
+    _points.pop_back();
+
     std::vector<std::pair<size_t, float> >  ret_matches;
     nanoflann::SearchParams params;
     const float query_pt[2] = { curPt.x, curPt.y};
@@ -814,6 +758,73 @@ void GLWidget::GetClosestPoints(MyPoint curPt, std::vector<MyPoint>& cPoints)
         cPoints.push_back(closestPt);
     }
 
-    // hack
-    _points.pop_back();
+
+}
+
+void GLWidget::SaveToSvg()
+{
+    std::cout << "void GLWidget::SaveToSvg()\n";
+
+    int wI = 1500;
+    int hI = 1500;
+
+    QSvgGenerator generator;
+    generator.setFileName("image" +  QString::number(_currentIter) + ".svg");
+    generator.setSize(QSize(wI, hI));
+    generator.setViewBox(QRect(0, 0, wI, hI));
+    generator.setTitle(tr("Bizzare Labyrinth"));
+    //generator.setDescription(tr("An SVG drawing created by the SVG Generator "
+    //                             "Example provided with Qt."));
+
+    QString descriptionStr = "";
+    descriptionStr += "Time (seconds): " + QString::number(_runningTime) + "\n";
+    descriptionStr += "Iteration: " + QString::number(_currentIter) + "\n";
+    descriptionStr += "# Points: " + QString::number(_points.size()) + "\n";
+    descriptionStr += "f_b: " + QString::number(SystemParams::f_b) + "\n";
+    descriptionStr += "f_f: " + QString::number(SystemParams::f_f) + "\n";
+    descriptionStr += "f_a: " + QString::number(SystemParams::f_a) + "\n";
+    descriptionStr += "ar_clamp: " + QString::number(SystemParams::ar_clamp) + "\n";
+    descriptionStr += "D: " + QString::number(SystemParams::D) + "\n";
+    descriptionStr += "sigma_l_j: " + QString::number(SystemParams::sigma_l_j) + "\n";
+    descriptionStr += "search_radius: " + QString::number(SystemParams::search_radius) + "\n";
+
+    generator.setDescription(descriptionStr);
+
+    QPainter painter;
+    painter.begin(&generator);
+
+    // draw
+    painter.setClipRect(QRect(0, 0, _img_width, _img_height));
+    painter.setPen(QPen(Qt::black, 1.0));
+
+    int mulFactor = 10;
+    int xFactor = (wI / 2) - (this->_img_width / 2 * mulFactor);
+    int yFactor = (hI / 2) - (this->_img_width / 2 * mulFactor);
+
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        MyPoint startPt = _points[a];
+        MyPoint endPt;
+
+        if(a == _points.size() - 1)
+        {
+            endPt = _points[0];
+        }
+        else
+        {
+            endPt = _points[a + 1];
+        }
+
+        startPt *= mulFactor;
+        endPt *= mulFactor;
+
+        startPt.x += xFactor;
+        startPt.y += yFactor;
+        endPt.x += xFactor;
+        endPt.y += yFactor;
+
+        painter.drawLine(startPt.x, startPt.y, endPt.x, endPt.y);
+    }
+
+    painter.end();
 }

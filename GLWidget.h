@@ -10,6 +10,8 @@
 #include "MyPoint.h"
 #include "MyLine.h"
 
+
+
 class GLWidget : public QGLWidget
 {
     Q_OBJECT
@@ -57,6 +59,8 @@ private:
     QMatrix4x4  _perspMatrix;
     QMatrix4x4  _transformMatrix;
 
+    float _runningTime;
+
     // right points (debug)
     //std::vector<MyPoint> _rPoints;
     //QOpenGLBuffer _rPointsVbo;
@@ -77,7 +81,7 @@ private:
     //QOpenGLBuffer _lLinesVbo;
     //QOpenGLVertexArrayObject _lLinesVao;
 
-
+    std::vector<std::vector<MyPoint>> _allCPoints;
 
 private:
    void InitCurve();
@@ -90,6 +94,7 @@ private:
    float GetRandomNumber();
 
    //void GetClosestSegments(int ptIndex, std::vector<MyLine>& cLines);
+   void GetClosestPoints();
    void GetClosestPoints(MyPoint curPt,
                          std::vector<MyPoint>& cPoints);
 
@@ -111,6 +116,8 @@ private:
    void PreparePointsVAO(std::vector<MyPoint> points, QOpenGLBuffer* ptsVbo, QOpenGLVertexArrayObject* ptsVao, QVector3D vecCol);
    void PrepareLinesVAO(std::vector<MyLine> lines, QOpenGLBuffer* linesVbo, QOpenGLVertexArrayObject* linesVao, QVector3D vecCol);
 
+   void SaveToSvg();
+
 protected:
     // qt event
     bool event( QEvent * event );
@@ -128,6 +135,7 @@ public:
     // destructor
     ~GLWidget();
 
+    void SetRunningTime(float val) { this->_runningTime = val; }
     int GetCurrentIter() { return _currentIter; }
     int GetNPoints(){return _points.size();}
     bool IsCalculationDone(){ return _iterStatus == -1; }
