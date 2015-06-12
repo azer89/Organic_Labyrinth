@@ -20,13 +20,13 @@ float SystemParams::d_split = 0.3f;  // 1.2
 float SystemParams::delta_const = 1.0f;
 
 // brownian constant
-float SystemParams::f_b = 0.08f;   // 0.085f
+float SystemParams::f_b = 0.001f;   // 0.085f
 
 // fairing constant
-float SystemParams::f_f = 0.07f; // 0.06f
+float SystemParams::f_f = 0.2f; // 0.06f
 
 // attraction-repulsion constant
-float SystemParams::f_a = 0.0040f;
+float SystemParams::f_a = 0.01f;
 
 float SystemParams::ar_clamp = 20.0f;
 

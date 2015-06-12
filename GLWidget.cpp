@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <random>
+#include <math.h>
 
 #include <QGLFormat>
 #include <QSvgGenerator>
@@ -41,6 +42,25 @@ inline double fastPow(double a, double b) {
   u.x[1] = (int)(b * (u.x[1] - 1072632447) + 1072632447);
   u.x[0] = 0;
   return u.d;
+}
+
+MyPoint rotate_point(float cx,float cy,float angle, MyPoint p)
+{
+  float s = sin(angle);
+  float c = cos(angle);
+
+  // translate point back to origin:
+  p.x -= cx;
+  p.y -= cy;
+
+  // rotate point
+  float xnew = p.x * c - p.y * s;
+  float ynew = p.x * s + p.y * c;
+
+  // translate point back:
+  p.x = xnew + cx;
+  p.y = ynew + cy;
+  return p;
 }
 
 void GLWidget::initializeGL()
@@ -290,12 +310,14 @@ void GLWidget::ResampleCurve()
         MyPoint pt1 = _points[a];
         MyPoint pt2 = _points[a + 1];
 
+        //pt1.age++;
         tempPoints.push_back(pt1);
 
         if(pt1.Distance(pt2) > threshold1)   // split
         {
-            //MyPoint newPt = pt1 + (pt2 - pt1) * 0.5;
-            tempPoints.push_back(pt1 + (pt2 - pt1) * 0.5);
+            MyPoint newPt = pt1 + (pt2 - pt1) * 0.5;
+            //newPt.age = pt1.age * 6 / 10;
+            tempPoints.push_back(newPt);
             a += 1;
         }
         else
@@ -338,6 +360,13 @@ void GLWidget::EvolveCurve()
         _drawSelPoint = false;
     }
 
+    //int maxAge = 20;
+
+    //for(size_t a = 0; a < _points.size(); a++)
+    //{
+    //    std::cout << _points[a].age << " ";
+    //}
+
     //clone
     std::vector<MyPoint> tempPoints(_points);
 
@@ -347,6 +376,8 @@ void GLWidget::EvolveCurve()
     float delta_const_D_fb = delta_const_D * SystemParams::f_b;
     for(size_t a = 0; a < _points.size(); a++)
     {
+        //if(_points[a].age >= maxAge) { continue;}
+
         float l1 = GetRandomNumber();
         float l2 = GetRandomNumber();
         float randX = l1 * cos(l2);
@@ -363,6 +394,8 @@ void GLWidget::EvolveCurve()
     float denominator = SystemParams::delta_const * 2.0;
     for(size_t a = 0; a < _points.size(); a++)
     {
+        //if(_points[a].age >= maxAge) { continue;}
+
         MyPoint curPt = _points[a];
         MyPoint prevPt;
         MyPoint nextPt;
@@ -385,28 +418,161 @@ void GLWidget::EvolveCurve()
     }
 
     // 3 --- ATTRACTION - REPULSION
+
     GetClosestPoints();
+
+
+
     for(size_t a = 0; a < _points.size(); a++)
     {
-        //MyPoint pt = GetAttractionRepulsion3(a);
-        tempPoints[a] += GetAttractionRepulsion(a);
+        //if(_points[a].age >= maxAge) { continue;}
+        //tempPoints[a] += GetAttractionRepulsion(a);
+
+        MyPoint pt = GetAttractionRepulsion(a);
+
+        //MyPoint fg(cos(pt.x), sin(pt.y));
+        //fg *= 2.0;
+        //pt.x += fg.x;
+        //pt.y += fg.y;
+
+        tempPoints[a] += pt;
+
     }
 
     // update
-    _points = std::vector<MyPoint>(tempPoints);
+    //_points = std::vector<MyPoint>(tempPoints);
+
+
+    //float angleOffset = M_PI / 4.0;
+
+
+
+//    for(size_t a = 0; a < _points.size(); a++)
+//    {
+//        // _points[a] = tempPoints[a];
+//        int randVal = rand() % 10 - 5;
+
+//        if(randVal >= 3 || randVal <= -3)
+//        {
+//            MyPoint pt1 = tempPoints[a] - MyPoint(this->_img_width / 2, this->_img_height);
+//            MyPoint pt2 = rotate_point(0, 0, M_PI / 3.0, pt1) * 2.5f;
+//            MyPoint dirPt = pt2 - pt1;
+//            dirPt = dirPt.Norm();
+//            dirPt *= 0.025;
+//            _points[a] = tempPoints[a] + dirPt;
+//        }/*
+//        else if(randVal <= -3)
+//        {
+//            MyPoint pt1 = tempPoints[a] - MyPoint(this->_img_width / 2, this->_img_height);
+//            MyPoint pt2 = rotate_point(0, 0, -M_PI / 3.0, pt1) * 2.5f;
+//            MyPoint dirPt = pt2 - pt1;
+//            dirPt = dirPt.Norm();
+//            dirPt *= 0.1;
+//            _points[a] = tempPoints[a] + dirPt;
+//        }*/
+//        else
+//        {
+//            MyPoint pt1(this->_img_width / 2, this->_img_height / 2);
+//            MyPoint pt2 = tempPoints[a];
+//            MyPoint dirPt = pt2 - pt1;
+//            //dirPt = dirPt.Norm();
+//            MyPoint triPt(cos(dirPt.x), sin(dirPt.y));
+//            triPt *= 0.01;
+
+//            _points[a] = tempPoints[a] + triPt;
+//        }
+
+//    }
+
+
+    // spiral !!!
     /*
     for(size_t a = 0; a < _points.size(); a++)
     {
-        _points[a] = tempPoints[a];
+        // _points[a] = tempPoints[a];
+
+        MyPoint pt1 = tempPoints[a] - MyPoint(this->_img_width / 2, this->_img_height);
+        MyPoint pt2 = rotate_point(0, 0, M_PI / 3.0, pt1) * 2.5f;
+        MyPoint dirPt = pt2 - pt1;
+        dirPt = dirPt.Norm();
+        //MyPoint triPt(cos(dirPt.x), sin(dirPt.y));
+        dirPt *= 0.1;
+
+        _points[a] = tempPoints[a] + dirPt;
+
     }
     */
 
+
+    // hv d
+    float frequency = 5;
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        // _points[a] = tempPoints[a];
+        MyPoint pt = tempPoints[a];
+
+        double fractpartx, fractparty, intpartx, intparty;
+
+        fractpartx = modf (frequency * pt.x , &intpartx);
+        fractparty = modf (frequency * pt.y , &intparty);
+
+        MyPoint dirPt = MyPoint(intpartx, intparty) - pt;
+
+        MyPoint triPt(cos(dirPt.x), sin(dirPt.y));
+        triPt *= 0.04;
+
+        _points[a] = tempPoints[a] + triPt;
+    }
+
+    /*
+    // D (doesn't work...)
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+       // _points[a] = tempPoints[a];
+
+
+        MyPoint pt1(this->_img_width / 2, this->_img_height / 2);
+        MyPoint pt2 = tempPoints[a];
+        MyPoint dirPt = pt2 - pt1;
+
+        //dirPt = dirPt.Norm();
+        dirPt = rotate_point(pt1.x, pt1.y, M_PI_4, dirPt);
+
+        MyPoint triPt(cos(dirPt.x), sin(dirPt.y));
+
+        triPt *= 0.01;
+
+        //triPt = rotate_point(0, 0, M_PI_4, triPt);
+
+        _points[a] = tempPoints[a] + triPt;
+    }*/
+
+    // HV
+    /*
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+       // _points[a] = tempPoints[a];
+
+
+        MyPoint pt1(this->_img_width / 2, this->_img_height / 2);
+        MyPoint pt2 = tempPoints[a];
+        MyPoint dirPt = pt2 - pt1;
+        //dirPt = dirPt.Norm();
+        MyPoint triPt(cos(dirPt.x), sin(dirPt.y));
+        triPt *= 0.01;
+
+        _points[a] = tempPoints[a] + triPt;
+    }
+    */
+
+
+
     ResampleCurve();
-    //if(_currentIter % 500 == 0)
-    //{
-        CreateCurveVAO();
-    //    SaveToSvg();
-    //}
+    CreateCurveVAO();
+    if(_currentIter % 500 == 0)
+    {
+        SaveToSvg();
+    }
     _currentIter++;
 }
 
@@ -542,6 +708,8 @@ MyPoint GLWidget::GetAttractionRepulsion(int ptIdx)
             aY += fij.y;
         }
     }
+
+
 
     return MyPoint(aX, aY) * SystemParams::f_a;
 }
