@@ -6,7 +6,7 @@
 // slices of the initial circle
 int SystemParams::circle_init_slices = 4; // 6 hexagon
 // radius of the initial circle
-float SystemParams::circle_radius = 15.0f;
+float SystemParams::circle_radius = 5.0f;
 
 
 // max length of each line segment
@@ -20,13 +20,13 @@ float SystemParams::d_split = 0.3f;  // 1.2
 float SystemParams::delta_const = 1.0f;
 
 // brownian constant
-float SystemParams::f_b = 0.001f;   // 0.085f
+float SystemParams::f_b = 0.02f;   // 0.085f
 
 // fairing constant
-float SystemParams::f_f = 0.2f; // 0.06f
+float SystemParams::f_f = 0.05f; // 0.06f
 
 // attraction-repulsion constant
-float SystemParams::f_a = 0.01f;
+float SystemParams::f_a = 0.006f;
 
 float SystemParams::ar_clamp = 20.0f;
 
@@ -45,3 +45,5 @@ float SystemParams::kdtree_radius = SystemParams::search_radius + SystemParams::
 
 // max iteration
 int SystemParams::max_iter = std::numeric_limits<int>::max();
+
+bool SystemParams::show_points = false;

@@ -22,7 +22,8 @@ GLWidget::GLWidget(QGLFormat format, QWidget *parent) :
     _img_width(10),
     _img_height(10),
     _iterStatus(-1),
-    _drawSelPoint(false)
+    _texture(0)
+    //_drawSelPoint(false)
 {
 }
 
@@ -30,6 +31,7 @@ GLWidget::GLWidget(QGLFormat format, QWidget *parent) :
 GLWidget::~GLWidget()
 {
     if(_shaderProgram) delete _shaderProgram;
+    if(_texture) delete _texture;
 }
 
 // http://stackoverflow.com/questions/16782746/what-is-faster-than-stdpow
@@ -98,6 +100,10 @@ void GLWidget::initializeGL()
 
     _e2 = std::mt19937(_rd());
     _dist = std::normal_distribution<>(0, SystemParams::dist_std_dev);
+
+
+    //_img_size.setWidth( 0 );
+    //_img_size.setHeight( 0 );
 }
 
 
@@ -117,7 +123,7 @@ void GLWidget::paintGL()
     if(_iterStatus == 0)
     {
         _currentIter = 0;
-        _drawSelPoint = false;
+        //_drawSelPoint = false;
         InitCurve();
         std::cout << "init curve done\n";
     }
@@ -151,6 +157,20 @@ void GLWidget::paintGL()
     _shaderProgram->setUniformValue(_mvpMatrixLocation, orthoMatrix * transformMatrix);
 
     PaintCurve();
+
+
+    if(_imageVao.isCreated())
+    {
+        int use_color_location = _shaderProgram->uniformLocation("use_color");
+        _shaderProgram->setUniformValue(use_color_location, (GLfloat)0.0);
+        _texture->bind();
+
+       _imageVao.bind();
+       glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+       _imageVao.bind();
+    }
+
+
 }
 
 // Mouse is pressed
@@ -163,53 +183,6 @@ void GLWidget::mousePressEvent(int x, int y)
 
     double dy = y + _scrollOffset.y();
     dy /= _zoomFactor;
-
-    // your stuff
-    //std::cout << dx << " " << dy << "\n";
-    // fix me: should use kd-tree
-    //if(_iterStatus != -1) return;
-
-    _drawSelPoint = true;
-    int idx = 0;
-    MyPoint mousePt(dx, dy);
-    float minDist = std::numeric_limits<float>::max();
-    for(size_t a = 0; a < _points.size(); a++)
-    {
-        float dist = mousePt.Distance(_points[a]);
-        if(dist < minDist)
-        {
-            minDist = dist;
-            _selPoint = _points[a];
-            idx = a;
-        }
-    }
-
-    // SELECTED POINTS
-    QVector3D vecCol = QVector3D(0.0, 0.0, 1.0);
-    std::vector<MyPoint> points;
-    points.push_back(_selPoint);
-    PreparePointsVAO(points, &_selPointsVbo, &_selPointsVao, vecCol);
-
-    /*
-    GetClosestSegments(idx, _rLines, _lLines);
-    GetClosestPoints(_selPoint, _rLines, _lLines, _rPoints, _lPoints);
-
-    // R LINES
-    vecCol = QVector3D(1.0, 0.0, 1.0);
-    PrepareLinesVAO(_rLines, &_rLinesVbo, &_rLinesVao, vecCol);
-    this->repaint();
-
-    // L LINES
-    vecCol = QVector3D(0.0, 1.0, 1.0);
-    PrepareLinesVAO(_lLines, &_lLinesVbo, &_lLinesVao, vecCol);
-
-    // R POINTS
-    vecCol = QVector3D(1.0, 0.0, 1.0);
-    PreparePointsVAO(_rPoints, &_rPointsVbo, &_rPointsVao, vecCol);
-
-    // L POINTS
-    vecCol = QVector3D(0.0, 1.0, 1.0);
-    PreparePointsVAO(_lPoints, &_lPointsVbo, &_lPointsVao, vecCol);*/
 }
 
 // Mouse is moved
@@ -281,11 +254,11 @@ void GLWidget::InitCurve()
 void GLWidget::CreateCurveVAO()
 {
     // POINTS VAO
-    QVector3D vecCol = QVector3D(0.0, 0.0, 0.0);
-    //PreparePointsVAO(_points, &_pointsVbo, &_pointsVao, vecCol);
+    QVector3D vecCol = QVector3D(1.0, 0.0, 0.0);
+    PreparePointsVAO(_points, &_pointsVbo, &_pointsVao, vecCol);
 
     // LINES VAO
-    //vecCol = QVector3D(0.0, 0.0, 0.0);
+    vecCol = QVector3D(0.0, 0.5, 1.0);
     std::vector<MyLine> lines;
     for(size_t a = 0; a < _points.size(); a++)
     {
@@ -357,15 +330,7 @@ void GLWidget::EvolveCurve()
     if(_currentIter == SystemParams::max_iter - 1)
     {
         _iterStatus = -1;
-        _drawSelPoint = false;
     }
-
-    //int maxAge = 20;
-
-    //for(size_t a = 0; a < _points.size(); a++)
-    //{
-    //    std::cout << _points[a].age << " ";
-    //}
 
     //clone
     std::vector<MyPoint> tempPoints(_points);
@@ -425,22 +390,13 @@ void GLWidget::EvolveCurve()
 
     for(size_t a = 0; a < _points.size(); a++)
     {
-        //if(_points[a].age >= maxAge) { continue;}
-        //tempPoints[a] += GetAttractionRepulsion(a);
-
         MyPoint pt = GetAttractionRepulsion(a);
-
-        //MyPoint fg(cos(pt.x), sin(pt.y));
-        //fg *= 2.0;
-        //pt.x += fg.x;
-        //pt.y += fg.y;
-
         tempPoints[a] += pt;
 
     }
 
     // update
-    //_points = std::vector<MyPoint>(tempPoints);
+    _points = std::vector<MyPoint>(tempPoints);
 
 
     //float angleOffset = M_PI / 4.0;
@@ -503,7 +459,7 @@ void GLWidget::EvolveCurve()
     }
     */
 
-
+    /*
     // hv d
     float frequency = 5;
     for(size_t a = 0; a < _points.size(); a++)
@@ -523,6 +479,7 @@ void GLWidget::EvolveCurve()
 
         _points[a] = tempPoints[a] + triPt;
     }
+    */
 
     /*
     // D (doesn't work...)
@@ -565,8 +522,6 @@ void GLWidget::EvolveCurve()
     }
     */
 
-
-
     ResampleCurve();
     CreateCurveVAO();
     if(_currentIter % 500 == 0)
@@ -584,12 +539,14 @@ void GLWidget::PaintCurve()
     int use_color_location = _shaderProgram->uniformLocation("use_color");
     _shaderProgram->setUniformValue(use_color_location, (GLfloat)1.0);
 
-    /*
-    glPointSize(5.0f);
-    _pointsVao.bind();
-    glDrawArrays(GL_POINTS, 0, _points.size());
-    _pointsVao.release();
-    */
+    if(SystemParams::show_points)
+    {
+        glPointSize(5.0f);
+        _pointsVao.bind();
+        glDrawArrays(GL_POINTS, 0, _points.size());
+        _pointsVao.release();
+    }
+
 
     //if(_drawSelPoint)
     //{
@@ -995,4 +952,72 @@ void GLWidget::SaveToSvg()
     }
 
     painter.end();
+}
+
+
+void GLWidget::SetImage(QString img)
+{
+    _imgColor.load(img);
+    _imgOriginal = LoadImageAsGrayscale(img);
+
+    // size
+    this->_img_width = _imgOriginal.width() ;
+    this->_img_height =  _imgOriginal.height() ;
+
+    std::cout << "image loaded. width: " << _img_width << ", height: " << _img_height << "\n";
+
+    _texture = new QOpenGLTexture(_imgOriginal);
+    _texture->setMinificationFilter(QOpenGLTexture::Nearest);
+    _texture->setMagnificationFilter(QOpenGLTexture::Linear);
+
+    _shaderProgram->setAttributeValue("base_texture", _texture->textureId());
+
+    // ~~~ create vao for the input image ~~~
+    _imageVao.create();
+    _imageVao.bind();
+
+    QVector<VertexData> imageVertices;
+    imageVertices.append(VertexData(QVector3D(0.0,        0.0,          0.0f), QVector2D(0, 0)));
+    imageVertices.append(VertexData(QVector3D(_img_width, 0.0,          0.0f), QVector2D(1, 0)));
+    imageVertices.append(VertexData(QVector3D(_img_width, _img_height,  0.0f), QVector2D(1, 1)));
+    imageVertices.append(VertexData(QVector3D(0.0,        _img_height,  0.0f), QVector2D(0, 1)));
+
+    _imageVbo.create();
+    _imageVbo.bind();
+    _imageVbo.allocate(imageVertices.data(), 4 * sizeof(VertexData));
+
+    // Offset for position
+    quintptr offset = 0;
+
+    // vertex
+    int vertexLocation = _shaderProgram->attributeLocation("vert");
+    _shaderProgram->enableAttributeArray(vertexLocation);
+    _shaderProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, offset, 3, sizeof(VertexData));
+
+    offset += sizeof(QVector3D);
+
+    // uv
+    int texcoordLocation = _shaderProgram->attributeLocation("uv");
+    _shaderProgram->enableAttributeArray(texcoordLocation);
+    _shaderProgram->setAttributeBuffer(texcoordLocation, GL_FLOAT, offset, 2, sizeof(VertexData));
+
+    _imageVao.release();
+}
+
+QImage GLWidget::LoadImageAsGrayscale(QString img)
+{
+    QImage oriImage;
+    oriImage.load(img);
+    for (int i = 0; i < oriImage.height(); i++)
+    {
+        uchar* scan = oriImage.scanLine(i);
+        int depth = 4;
+        for (int jj = 0; jj < oriImage.width(); jj++) {
+
+            QRgb* rgbpixel = reinterpret_cast<QRgb*>(scan + jj * depth);
+            int gray = qGray(*rgbpixel);
+            *rgbpixel = QColor(gray, gray, gray).rgba();
+        }
+    }
+    return oriImage;
 }

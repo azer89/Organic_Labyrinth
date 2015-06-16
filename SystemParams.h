@@ -34,6 +34,8 @@ public:
     //static int n_min;
 
     static int max_iter;    // debug, fix me
+
+    static bool show_points;
 };
 
 #endif // SYSTEMPARAMS_H

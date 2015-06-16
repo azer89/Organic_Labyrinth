@@ -6,6 +6,7 @@
 #include <QOpenGLVertexArrayObject>
 #include <QOpenGLBuffer>
 #include <QOpenGLShaderProgram>
+#include <QOpenGLTexture>
 
 #include "MyPoint.h"
 #include "MyLine.h"
@@ -48,10 +49,18 @@ private:
     QOpenGLVertexArrayObject    _linesVao;
 
     // the selected point
-    bool                        _drawSelPoint;
-    MyPoint                     _selPoint;
-    QOpenGLBuffer               _selPointsVbo;
-    QOpenGLVertexArrayObject    _selPointsVao;
+    //bool                        _drawSelPoint;
+    //MyPoint                     _selPoint;
+    //QOpenGLBuffer               _selPointsVbo;
+    //QOpenGLVertexArrayObject    _selPointsVao;
+
+    // image
+    QOpenGLTexture* _texture;
+    QOpenGLBuffer _imageVbo;
+    QOpenGLVertexArrayObject _imageVao;
+    QImage _imgOriginal;
+    QImage _imgColor;
+    //QSize _img_size;
 
     // for rendering
     int         _mvpMatrixLocation;
@@ -105,6 +114,7 @@ private:
    //                      std::vector<MyPoint>& rPoints,
    //                      std::vector<MyPoint>& lPoints);
 
+   QImage LoadImageAsGrayscale(QString img);
 
    MyPoint GetClosestPointToALine(MyPoint v, MyPoint w, MyPoint p);
 
@@ -134,6 +144,8 @@ public:
     GLWidget( QGLFormat format, QWidget *parent = 0);
     // destructor
     ~GLWidget();
+
+    void SetImage(QString img);
 
     void SetRunningTime(float val) { this->_runningTime = val; }
     int GetCurrentIter() { return _currentIter; }

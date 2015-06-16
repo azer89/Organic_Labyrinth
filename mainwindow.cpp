@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include <QFileDialog>
+
 #include <iostream>
 
 
@@ -13,13 +15,23 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 
     animTimer = new QTimer(this); connect(animTimer, SIGNAL(timeout()), this, SLOT(AnimationThread()));
-    connect(ui->actionStart,	 SIGNAL(triggered()), this, SLOT(SimulationStart()));
+    connect(ui->runButton,	 SIGNAL(clicked()), this, SLOT(SimulationStart()));
+    connect(ui->actionOpen,	 SIGNAL(triggered()), this, SLOT(FileOpen()));
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
     delete animTimer;
+}
+
+void MainWindow::FileOpen()
+{
+    QString qFilename = QFileDialog::getOpenFileName(this, "/home/azer/Desktop/");
+    if(qFilename.isEmpty()) return;
+    ui->widget->GetGLWidget()->SetImage(qFilename);
+    ui->widget->GetGLWidget()->repaint();
+    ui->widget->SetScrolls();
 }
 
 void MainWindow::AnimationThread()
@@ -36,10 +48,6 @@ void MainWindow::AnimationThread()
     {
         animTimer->stop();
     }
-    //else
-    //{
-    //
-    //}
 }
 
 void MainWindow::SimulationStart()
@@ -50,5 +58,10 @@ void MainWindow::SimulationStart()
 
     startTime = std::clock();
 
-    animTimer->start(0);
+    SystemParams::f_b = ui->fb_sb->value();
+    SystemParams::f_f = ui->ff_sb->value();
+    SystemParams::f_a = ui->fa_sb->value();
+    SystemParams::show_points = ui->show_points_cb->isChecked();
+
+    animTimer->start(ui->delay_sb->value());
 }

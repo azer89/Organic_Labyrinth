@@ -28,6 +28,8 @@ private slots:
     // thread to open image
     void AnimationThread();
     void SimulationStart();
+
+    void FileOpen();
 };
 
 #endif // MAINWINDOW_H
