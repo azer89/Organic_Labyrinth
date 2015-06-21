@@ -30,6 +30,7 @@ private slots:
     void SimulationStart();
 
     void FileOpen();
+    void CheckBoxesTriggered();
 };
 
 #endif // MAINWINDOW_H

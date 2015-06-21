@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="529.167mm" height="529.167mm"
+ viewBox="0 0 1500 1500"
+ xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"  version="1.2" baseProfile="tiny">
+<title>Bizzare Labyrinth</title>
+<desc>Time (seconds): 0
+Iteration: 0
+# Points: 16
+f_b: 0.02
+f_f: 0.15
+f_a: 0.008
+ar_clamp: 20
+D: 1
+sigma_l_j: 1
+search_radius: 20
+</desc>
+<defs>
+</defs>
+<g fill="none" stroke="black" stroke-width="1" fill-rule="evenodd" stroke-linecap="square" stroke-linejoin="bevel" >
+
+<g fill="none" stroke="#000000" stroke-opacity="1" stroke-width="1" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(1,0,0,1,0,0)"
+font-family="Droid Sans" font-size="9.5" font-weight="400" font-style="normal" 
+>
+</g>
+
+<g fill="none" stroke="#000000" stroke-opacity="1" stroke-width="1" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(1,0,0,1,0,0)"
+font-family="Droid Sans" font-size="9.5" font-weight="400" font-style="normal" 
+>
+<polyline fill="none" vector-effect="none" points="750,888 787,857 " />
+<polyline fill="none" vector-effect="none" points="787,857 825,825 " />
+<polyline fill="none" vector-effect="none" points="825,825 856,787 " />
+<polyline fill="none" vector-effect="none" points="856,787 888,750 " />
+<polyline fill="none" vector-effect="none" points="888,750 857,712 " />
+<polyline fill="none" vector-effect="none" points="857,712 825,674 " />
+<polyline fill="none" vector-effect="none" points="825,674 787,642 " />
+<polyline fill="none" vector-effect="none" points="787,642 750,611 " />
+<polyline fill="none" vector-effect="none" points="750,611 712,642 " />
+<polyline fill="none" vector-effect="none" points="712,642 675,674 " />
+<polyline fill="none" vector-effect="none" points="675,674 643,712 " />
+<polyline fill="none" vector-effect="none" points="643,712 611,750 " />
+<polyline fill="none" vector-effect="none" points="611,750 643,787 " />
+<polyline fill="none" vector-effect="none" points="643,787 675,825 " />
+<polyline fill="none" vector-effect="none" points="675,825 712,856 " />
+<polyline fill="none" vector-effect="none" points="712,856 750,888 " />
+</g>
+</g>
+</svg>

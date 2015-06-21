@@ -55,12 +55,22 @@ private:
     //QOpenGLVertexArrayObject    _selPointsVao;
 
     // image
-    QOpenGLTexture* _texture;
+    QOpenGLTexture* _imageTexture;
     QOpenGLBuffer _imageVbo;
     QOpenGLVertexArrayObject _imageVao;
     QImage _imgOriginal;
     QImage _imgColor;
-    //QSize _img_size;
+
+
+    QOpenGLTexture* _magnitudeTexture;
+    QOpenGLBuffer _magnitudeVbo;
+    QOpenGLVertexArrayObject _magnitudeVao;
+    QImage _imgMagnitude;   // debug
+    QImage _imgGradientX;   // debug
+    QImage _imgGradientY;   // debug
+    std::vector<std::vector<float>> _magnitude;
+    std::vector<std::vector<float>> _gradientX;
+    std::vector<std::vector<float>> _gradientY;
 
     // for rendering
     int         _mvpMatrixLocation;
@@ -101,6 +111,9 @@ private:
    void ResampleCurve();
    void UniformResample(std::vector<MyPoint>& oriCurve, std::vector<MyPoint>& resampleCurve, double maxDist);
    float GetRandomNumber();
+   float GetDelta(float x, float y);
+   MyPoint GetDirVector(float x, float y);
+   void CalculateGradient();
 
    //void GetClosestSegments(int ptIndex, std::vector<MyLine>& cLines);
    void GetClosestPoints();
@@ -123,6 +136,7 @@ private:
    MyPoint GetAttractionRepulsion(int ptIdx);
    float GetLennardJones(float r);
 
+   void PrepareImageVAO(QOpenGLTexture* tex, QOpenGLBuffer* vbo, QOpenGLVertexArrayObject* vao);
    void PreparePointsVAO(std::vector<MyPoint> points, QOpenGLBuffer* ptsVbo, QOpenGLVertexArrayObject* ptsVao, QVector3D vecCol);
    void PrepareLinesVAO(std::vector<MyLine> lines, QOpenGLBuffer* linesVbo, QOpenGLVertexArrayObject* linesVao, QVector3D vecCol);
 

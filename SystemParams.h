@@ -36,6 +36,10 @@ public:
     static int max_iter;    // debug, fix me
 
     static bool show_points;
+    static bool show_image;
+    static bool show_mag;
+
+    static float delta_bound;
 };
 
 #endif // SYSTEMPARAMS_H

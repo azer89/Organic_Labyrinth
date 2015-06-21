@@ -47,3 +47,7 @@ float SystemParams::kdtree_radius = SystemParams::search_radius + SystemParams::
 int SystemParams::max_iter = std::numeric_limits<int>::max();
 
 bool SystemParams::show_points = false;
+bool SystemParams::show_image = true;
+bool SystemParams::show_mag = false;
+
+float SystemParams::delta_bound = 1.0;

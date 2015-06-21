@@ -22,7 +22,7 @@ GLWidget::GLWidget(QGLFormat format, QWidget *parent) :
     _img_width(10),
     _img_height(10),
     _iterStatus(-1),
-    _texture(0)
+    _imageTexture(0)
     //_drawSelPoint(false)
 {
 }
@@ -31,7 +31,7 @@ GLWidget::GLWidget(QGLFormat format, QWidget *parent) :
 GLWidget::~GLWidget()
 {
     if(_shaderProgram) delete _shaderProgram;
-    if(_texture) delete _texture;
+    if(_imageTexture) delete _imageTexture;
 }
 
 // http://stackoverflow.com/questions/16782746/what-is-faster-than-stdpow
@@ -159,15 +159,28 @@ void GLWidget::paintGL()
     PaintCurve();
 
 
-    if(_imageVao.isCreated())
+    if(_magnitudeVao.isCreated() && SystemParams::show_mag)
     {
         int use_color_location = _shaderProgram->uniformLocation("use_color");
         _shaderProgram->setUniformValue(use_color_location, (GLfloat)0.0);
-        _texture->bind();
 
-       _imageVao.bind();
-       glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-       _imageVao.bind();
+        _magnitudeTexture->bind();
+        _magnitudeVao.bind();
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        _magnitudeVao.release();
+        _magnitudeTexture->release();
+    }
+
+    if(_imageVao.isCreated() && SystemParams::show_image)
+    {
+        int use_color_location = _shaderProgram->uniformLocation("use_color");
+        _shaderProgram->setUniformValue(use_color_location, (GLfloat)0.0);
+
+        _imageTexture->bind();
+        _imageVao.bind();
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        _imageVao.release();
+        _imageTexture->release();
     }
 
 
@@ -268,6 +281,7 @@ void GLWidget::CreateCurveVAO()
     PrepareLinesVAO(lines, &_linesVbo, &_linesVao, vecCol);
 }
 
+
 void GLWidget::ResampleCurve()
 {
     // a really simple resampling (the version from the paper)
@@ -275,7 +289,7 @@ void GLWidget::ResampleCurve()
 
     // hack
     _points.push_back(_points[0]);
-    float threshold1 = SystemParams::D * SystemParams::d_split;
+
     //float threshold2 = SystemParams::D * SystemParams::k_min;
 
     for(size_t a = 0; a < _points.size() - 1;)
@@ -286,10 +300,13 @@ void GLWidget::ResampleCurve()
         //pt1.age++;
         tempPoints.push_back(pt1);
 
+        float delta_factor = 0.5f * (GetDelta(pt1.x, pt1.y) + GetDelta(pt2.x, pt2.y));
+
+        float threshold1 = SystemParams::D * SystemParams::d_split * delta_factor;
+
         if(pt1.Distance(pt2) > threshold1)   // split
         {
             MyPoint newPt = pt1 + (pt2 - pt1) * 0.5;
-            //newPt.age = pt1.age * 6 / 10;
             tempPoints.push_back(newPt);
             a += 1;
         }
@@ -297,21 +314,14 @@ void GLWidget::ResampleCurve()
         {
             a += 2;
         }
-//        else if(pt1.Distance(pt2) < threshold2)    // delete / skip next
-//        {
-//            a += 2;
-//        }
-//        else    // do nothing
-//        {
-//            a += 1;
-//        }
     }
 
     // rebuild curve
-    //_points.clear();
     _points = std::vector<MyPoint>(tempPoints);
 
     // hack
+    float delta_factor = 0.5f * (GetDelta(_points[_points.size() - 1].x, _points[_points.size() - 1].y) + GetDelta(_points[0].x, _points[0].y));
+    float threshold1 = SystemParams::D * SystemParams::d_split * delta_factor;
     if(_points[_points.size() - 1].Distance(_points[0]) < threshold1 && _points.size() > 1)
         { _points.erase(_points.begin()); }
 
@@ -325,6 +335,48 @@ void GLWidget::ResampleCurve()
     */
 }
 
+MyPoint GLWidget::GetDirVector(float x, float y)
+{
+    MyPoint retVec(0, 0);
+    if(_imageVao.isCreated())
+    {
+        int intx = (int)x;
+        int inty = (int)y;
+        if(intx > 0 && intx < _img_width && inty > 0 && inty < _img_height)
+        {
+            retVec = MyPoint(_gradientX[intx][inty], _gradientY[intx][inty]);
+        }
+    }
+    return retVec;
+}
+
+float GLWidget::GetDelta(float x, float y)
+{
+    //return SystemParams::delta_const;
+    float retVal = SystemParams::delta_const;
+
+
+    if(_imageVao.isCreated())
+    {
+        int intx = (int)x;
+        int inty = (int)y;
+        float spanVal = 1.0f - SystemParams::delta_bound;
+
+        //std::cout << spanVal << "\n";
+
+        if(spanVal > 1e-8 && intx > 0 && intx < _img_width && inty > 0 && inty < _img_height)
+        {
+            float val = qGray(_imgOriginal.pixel(intx, inty));
+            retVal = val / 255.0;
+            retVal = (retVal * spanVal) + SystemParams::delta_bound;
+        }
+    }
+
+    return retVal;
+
+}
+
+
 void GLWidget::EvolveCurve()
 {
     if(_currentIter == SystemParams::max_iter - 1)
@@ -337,16 +389,16 @@ void GLWidget::EvolveCurve()
 
     // 1 --- BROWNIAN MOTION
     // fix me, delta is static
-    float delta_const_D = SystemParams::delta_const * SystemParams::D;
-    float delta_const_D_fb = delta_const_D * SystemParams::f_b;
+
     for(size_t a = 0; a < _points.size(); a++)
     {
-        //if(_points[a].age >= maxAge) { continue;}
-
         float l1 = GetRandomNumber();
         float l2 = GetRandomNumber();
         float randX = l1 * cos(l2);
         float randY = l1 * sin(l2);
+
+        float delta_const_D = GetDelta(_points[a].x, _points[a].y) * SystemParams::D;
+        float delta_const_D_fb = delta_const_D * SystemParams::f_b;
 
         float xB = randX * delta_const_D_fb;
         float yB = randY * delta_const_D_fb;
@@ -356,7 +408,7 @@ void GLWidget::EvolveCurve()
 
     // 2 --- FAIRING
     // fix me, delta is static
-    float denominator = SystemParams::delta_const * 2.0;
+
     for(size_t a = 0; a < _points.size(); a++)
     {
         //if(_points[a].age >= maxAge) { continue;}
@@ -370,11 +422,12 @@ void GLWidget::EvolveCurve()
         if(a < _points.size() - 1) { nextPt = _points[a + 1]; }
         else { nextPt = _points[0]; }
 
-        //float xFactor = ((prevPt.x * SystemParams::delta_const) + (nextPt.x * SystemParams::delta_const)) / denominator;
-        //float yFactor = ((prevPt.y * SystemParams::delta_const) + (nextPt.y * SystemParams::delta_const)) / denominator;
+        float prevDelta = GetDelta(prevPt.x, prevPt.y);
+        float nextDelta = GetDelta(nextPt.x, nextPt.y);
+        float denominator = prevDelta + nextDelta;
 
-        float xFactor = (prevPt.x + nextPt.x) / denominator;
-        float yFactor = (prevPt.y + nextPt.y) / denominator;
+        float xFactor = (prevPt.x * nextDelta + nextPt.x * prevDelta) / denominator;
+        float yFactor = (prevPt.y * nextDelta + nextPt.y * prevDelta) / denominator;
 
         xFactor -= curPt.x;
         yFactor -= curPt.y;
@@ -386,8 +439,6 @@ void GLWidget::EvolveCurve()
 
     GetClosestPoints();
 
-
-
     for(size_t a = 0; a < _points.size(); a++)
     {
         MyPoint pt = GetAttractionRepulsion(a);
@@ -398,48 +449,29 @@ void GLWidget::EvolveCurve()
     // update
     _points = std::vector<MyPoint>(tempPoints);
 
+    // HV (work best)
+    /*
+    for(size_t a = 0; a < _points.size(); a++)
+    {
+        MyPoint pt1(this->_img_width / 2, this->_img_height / 2);
+        MyPoint pt2 = tempPoints[a];
+        MyPoint dirPt = pt2 - pt1;
+        //dirPt = dirPt.Norm();
+        MyPoint triPt(cos(dirPt.x), sin(dirPt.y));
+        triPt *= 0.015;
 
-    //float angleOffset = M_PI / 4.0;
+        _points[a] = tempPoints[a] + triPt;
+    }
+    */
 
 
-
-//    for(size_t a = 0; a < _points.size(); a++)
-//    {
-//        // _points[a] = tempPoints[a];
-//        int randVal = rand() % 10 - 5;
-
-//        if(randVal >= 3 || randVal <= -3)
-//        {
-//            MyPoint pt1 = tempPoints[a] - MyPoint(this->_img_width / 2, this->_img_height);
-//            MyPoint pt2 = rotate_point(0, 0, M_PI / 3.0, pt1) * 2.5f;
-//            MyPoint dirPt = pt2 - pt1;
-//            dirPt = dirPt.Norm();
-//            dirPt *= 0.025;
-//            _points[a] = tempPoints[a] + dirPt;
-//        }/*
-//        else if(randVal <= -3)
-//        {
-//            MyPoint pt1 = tempPoints[a] - MyPoint(this->_img_width / 2, this->_img_height);
-//            MyPoint pt2 = rotate_point(0, 0, -M_PI / 3.0, pt1) * 2.5f;
-//            MyPoint dirPt = pt2 - pt1;
-//            dirPt = dirPt.Norm();
-//            dirPt *= 0.1;
-//            _points[a] = tempPoints[a] + dirPt;
-//        }*/
-//        else
-//        {
-//            MyPoint pt1(this->_img_width / 2, this->_img_height / 2);
-//            MyPoint pt2 = tempPoints[a];
-//            MyPoint dirPt = pt2 - pt1;
-//            //dirPt = dirPt.Norm();
-//            MyPoint triPt(cos(dirPt.x), sin(dirPt.y));
-//            triPt *= 0.01;
-
-//            _points[a] = tempPoints[a] + triPt;
-//        }
-
-//    }
-
+    // anisotropy
+    /*for(size_t a = 0; a < _points.size(); a++)
+    {
+        MyPoint magNorm = GetDirVector(_points[a].x, _points[a].y).Norm();
+        _points[a] = tempPoints[a] + magNorm * 0.05;
+    }
+    */
 
     // spiral !!!
     /*
@@ -459,8 +491,9 @@ void GLWidget::EvolveCurve()
     }
     */
 
+
+    // BLOCKS
     /*
-    // hv d
     float frequency = 5;
     for(size_t a = 0; a < _points.size(); a++)
     {
@@ -478,49 +511,9 @@ void GLWidget::EvolveCurve()
         triPt *= 0.04;
 
         _points[a] = tempPoints[a] + triPt;
-    }
-    */
-
-    /*
-    // D (doesn't work...)
-    for(size_t a = 0; a < _points.size(); a++)
-    {
-       // _points[a] = tempPoints[a];
-
-
-        MyPoint pt1(this->_img_width / 2, this->_img_height / 2);
-        MyPoint pt2 = tempPoints[a];
-        MyPoint dirPt = pt2 - pt1;
-
-        //dirPt = dirPt.Norm();
-        dirPt = rotate_point(pt1.x, pt1.y, M_PI_4, dirPt);
-
-        MyPoint triPt(cos(dirPt.x), sin(dirPt.y));
-
-        triPt *= 0.01;
-
-        //triPt = rotate_point(0, 0, M_PI_4, triPt);
-
-        _points[a] = tempPoints[a] + triPt;
     }*/
 
-    // HV
-    /*
-    for(size_t a = 0; a < _points.size(); a++)
-    {
-       // _points[a] = tempPoints[a];
 
-
-        MyPoint pt1(this->_img_width / 2, this->_img_height / 2);
-        MyPoint pt2 = tempPoints[a];
-        MyPoint dirPt = pt2 - pt1;
-        //dirPt = dirPt.Norm();
-        MyPoint triPt(cos(dirPt.x), sin(dirPt.y));
-        triPt *= 0.01;
-
-        _points[a] = tempPoints[a] + triPt;
-    }
-    */
 
     ResampleCurve();
     CreateCurveVAO();
@@ -654,7 +647,7 @@ MyPoint GLWidget::GetAttractionRepulsion(int ptIdx)
     for(size_t a = 0; a < cPoints.size(); a++)
     {
         MyPoint minVec = _points[ptIdx] - cPoints[a];
-        float lVec = minVec.Length();
+        float lVec = minVec.Length() / (SystemParams::D * GetDelta(_points[ptIdx].x, _points[ptIdx].y));
         float lj = GetLennardJones(lVec);
         MyPoint fij = (minVec / lVec ) * lj;
         float fij_length = fij.Length();
@@ -954,27 +947,16 @@ void GLWidget::SaveToSvg()
     painter.end();
 }
 
-
-void GLWidget::SetImage(QString img)
+void GLWidget::PrepareImageVAO(QOpenGLTexture* tex, QOpenGLBuffer* vbo, QOpenGLVertexArrayObject* vao)
 {
-    _imgColor.load(img);
-    _imgOriginal = LoadImageAsGrayscale(img);
+    tex->setMinificationFilter(QOpenGLTexture::Nearest);
+    tex->setMagnificationFilter(QOpenGLTexture::Linear);
 
-    // size
-    this->_img_width = _imgOriginal.width() ;
-    this->_img_height =  _imgOriginal.height() ;
-
-    std::cout << "image loaded. width: " << _img_width << ", height: " << _img_height << "\n";
-
-    _texture = new QOpenGLTexture(_imgOriginal);
-    _texture->setMinificationFilter(QOpenGLTexture::Nearest);
-    _texture->setMagnificationFilter(QOpenGLTexture::Linear);
-
-    _shaderProgram->setAttributeValue("base_texture", _texture->textureId());
+    _shaderProgram->setAttributeValue("base_texture", tex->textureId());
 
     // ~~~ create vao for the input image ~~~
-    _imageVao.create();
-    _imageVao.bind();
+    vao->create();
+    vao->bind();
 
     QVector<VertexData> imageVertices;
     imageVertices.append(VertexData(QVector3D(0.0,        0.0,          0.0f), QVector2D(0, 0)));
@@ -982,9 +964,9 @@ void GLWidget::SetImage(QString img)
     imageVertices.append(VertexData(QVector3D(_img_width, _img_height,  0.0f), QVector2D(1, 1)));
     imageVertices.append(VertexData(QVector3D(0.0,        _img_height,  0.0f), QVector2D(0, 1)));
 
-    _imageVbo.create();
-    _imageVbo.bind();
-    _imageVbo.allocate(imageVertices.data(), 4 * sizeof(VertexData));
+    vbo->create();
+    vbo->bind();
+    vbo->allocate(imageVertices.data(), 4 * sizeof(VertexData));
 
     // Offset for position
     quintptr offset = 0;
@@ -1001,7 +983,115 @@ void GLWidget::SetImage(QString img)
     _shaderProgram->enableAttributeArray(texcoordLocation);
     _shaderProgram->setAttributeBuffer(texcoordLocation, GL_FLOAT, offset, 2, sizeof(VertexData));
 
-    _imageVao.release();
+    vao->release();
+}
+
+
+void GLWidget::SetImage(QString img)
+{
+    _imgColor.load(img);
+    _imgOriginal = LoadImageAsGrayscale(img);
+
+    // size
+    this->_img_width = _imgOriginal.width() ;
+    this->_img_height =  _imgOriginal.height() ;
+
+    std::cout << "image loaded. width: " << _img_width << ", height: " << _img_height << "\n";
+
+    _imageTexture = new QOpenGLTexture(_imgOriginal);
+
+    PrepareImageVAO(_imageTexture, &_imageVbo, &_imageVao);
+
+    CalculateGradient();
+
+}
+
+void GLWidget::CalculateGradient()
+{
+    // calculate gradient
+    _imgGradientX = QImage(_img_width, _img_height, QImage::Format_ARGB32);
+    _imgGradientY = QImage(_img_width, _img_height, QImage::Format_ARGB32);
+    _imgMagnitude = QImage(_img_width, _img_height, QImage::Format_ARGB32);
+    for (int a = 0; a < _img_height; a++)
+    {
+        uchar* scanX = _imgGradientX.scanLine(a);
+        uchar* scanY = _imgGradientY.scanLine(a);
+        uchar* scanM = _imgMagnitude.scanLine(a);
+        int depth = 4;
+        for (int b = 0; b < _img_width; b++)
+        {
+            QRgb* rgbpixelX = reinterpret_cast<QRgb*>(scanX + b * depth);
+            *rgbpixelX = QColor(127, 127, 127).rgba();   // gray 0.5
+
+            QRgb* rgbpixelY = reinterpret_cast<QRgb*>(scanY + b * depth);
+            *rgbpixelY = QColor(127, 127, 127).rgba();   // gray 0.5
+
+            QRgb* rgbpixelM = reinterpret_cast<QRgb*>(scanM + b * depth);
+            *rgbpixelM = QColor(127, 127, 127).rgba();   // gray 0.5
+
+        }
+    }
+
+    for(size_t a = 0; a < _img_width; a++)
+    {
+        _gradientX.push_back(std::vector<float>(_img_height));
+        _gradientY.push_back(std::vector<float>(_img_height));
+        _magnitude.push_back(std::vector<float>(_img_height));
+
+        for(size_t b = 0; b < _img_height; b++)
+           {
+            _gradientX[a][b] = 0.5f;
+            _gradientY[a][b] = 0.5f;
+            _magnitude[a][b] = 0.5f;
+        }
+    }
+
+    float kernelx[3][3] = {{-1, -2, -1},
+                           {0,  0,  0},
+                           {1,  2,  1}};
+
+
+    float kernely[3][3] = {{-1, 0, 1},
+                           {-2, 0, 2},
+                           {-1, 0, 1}};
+
+    for(size_t a = 1; a < _img_width - 1; a++)
+    {
+        for(size_t b = 1; b < _img_height - 1; b++)
+        {
+            float gx = 0.0;
+            float gy = 0.0;
+
+            for(size_t i = 0; i < 3; i++)
+            {
+                for(size_t j = 0; j < 3; j++)
+                {
+                    int an = a + i - 1;
+                    int bn = b + j - 1;
+
+                    float pixVal = ((float)qGray(_imgOriginal.pixel(an, bn))) / 255.0;
+                    gx += pixVal * kernelx[i][j];
+                    gy += pixVal * kernely[i][j];
+                }
+             }
+
+
+            float mag = sqrt(gx * gx + gy * gy);
+            _gradientX[a][b] = gx;
+            _gradientY[a][b] = gy;
+            _magnitude[a][b] = mag;
+
+            int gx255 = (int)(gx * 255.0);
+            _imgGradientX.setPixel(a, b, qRgb(gx255, gx255, gx255));
+            int gy255 = (int)(gy * 255.0);
+            _imgGradientY.setPixel(a, b, qRgb(gy255, gy255, gy255));
+            int mag255 = (int)(mag * 255.0);
+            _imgMagnitude.setPixel(a, b, qRgb(mag255, mag255, mag255));
+        }
+    }
+
+    _magnitudeTexture = new QOpenGLTexture(_imgMagnitude);
+    PrepareImageVAO(_magnitudeTexture, &_magnitudeVbo, &_magnitudeVao);
 }
 
 QImage GLWidget::LoadImageAsGrayscale(QString img)
