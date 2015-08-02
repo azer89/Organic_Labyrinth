@@ -14,7 +14,8 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    animTimer = new QTimer(this); connect(animTimer, SIGNAL(timeout()), this, SLOT(AnimationThread()));
+    animTimer = new QTimer(this); 
+    connect(animTimer, SIGNAL(timeout()), this, SLOT(AnimationThread()));
     connect(ui->runButton,	 SIGNAL(clicked()), this, SLOT(SimulationStart()));
     connect(ui->actionOpen,	 SIGNAL(triggered()), this, SLOT(FileOpen()));
 

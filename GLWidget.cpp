@@ -949,11 +949,6 @@ void GLWidget::SaveToSvg()
 
 void GLWidget::PrepareImageVAO(QOpenGLTexture* tex, QOpenGLBuffer* vbo, QOpenGLVertexArrayObject* vao)
 {
-    tex->setMinificationFilter(QOpenGLTexture::Nearest);
-    tex->setMagnificationFilter(QOpenGLTexture::Linear);
-
-    _shaderProgram->setAttributeValue("base_texture", tex->textureId());
-
     // ~~~ create vao for the input image ~~~
     vao->create();
     vao->bind();
@@ -967,6 +962,10 @@ void GLWidget::PrepareImageVAO(QOpenGLTexture* tex, QOpenGLBuffer* vbo, QOpenGLV
     vbo->create();
     vbo->bind();
     vbo->allocate(imageVertices.data(), 4 * sizeof(VertexData));
+
+    //tex->setMinificationFilter(QOpenGLTexture::Nearest);
+    //tex->setMagnificationFilter(QOpenGLTexture::Linear);
+    //_shaderProgram->setAttributeValue("base_texture", tex->textureId());
 
     // Offset for position
     quintptr offset = 0;
